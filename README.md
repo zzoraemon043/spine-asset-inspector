@@ -2,11 +2,305 @@
 
 `MIT` `Vite 8` `React 19` `TypeScript 5.9` `Tailwind CSS 4` `Zustand 5` `spine-webgl 4.2` `100% Offline` `Strict CSP`
 
-純前端、可離線運作的 2D 遊戲 Spine 骨骼動畫資產檢驗工作台。提供動畫預覽、逐影格控制、動作過渡與多軌道混合調校、換皮換裝組裝、插槽部件檢視、除錯線框、自訂事件監聽、圖集拆解與紋理熱替換、骨架效能體檢、音訊事件對齊，以及透明背景的 PNG / PNG 序列 / WebM 匯出。所有解析與渲染都在瀏覽器本機完成，不上傳任何資產。
+[English](#english) | [繁體中文](#繁體中文)
 
 ---
 
-## 目錄
+## English
+
+A front-end only, fully offline inspection and editing workbench for Spine skeletal animation assets in 2D games. It provides animation preview, frame-by-frame control, transition and multi-track mix tuning, skin composition, slot and attachment inspection, debug overlays, custom event monitoring, atlas unpacking and live texture replacement, performance auditing, audio-to-event alignment, animation editing, and PNG / PNG sequence / Sprite Sheet / WebM export with transparent backgrounds. All parsing and rendering happen locally in the browser; no asset is ever uploaded.
+
+### Contents
+
+1. [Features](#features)
+2. [Quick Start](#quick-start)
+3. [Supported Formats and Loading Rules](#supported-formats-and-loading-rules)
+4. [Interface and Shortcuts](#interface-and-shortcuts)
+5. [Architecture](#architecture)
+6. [Directory Layout](#directory-layout)
+7. [File and Code Conventions](#file-and-code-conventions)
+8. [Performance Audit Budgets](#performance-audit-budgets)
+9. [Security and Privacy](#security-and-privacy)
+10. [Testing](#testing)
+11. [Known Limitations](#known-limitations)
+12. [License](#license)
+
+### Features
+
+| Module | Components | Capabilities |
+| --- | --- | --- |
+| AssetLoader | `core/assets/*`, `TopBar`, `StageView` | Drag in or pick `.json` / `.skel` + `.atlas` + `.png`, a whole `.zip`, or a folder; skeletons, atlases and texture pages are paired automatically; the Spine version is detected and incompatibilities are reported |
+| StageRenderer | `core/render/*`, `StageView` | WebGL rendering (`@esotericsoftware/spine-webgl`), high-DPI canvas, cursor-anchored wheel zoom, drag to pan, double-click to fit, 1:1 zoom, four backgrounds (transparent checkerboard, dark, light, green screen), origin axes |
+| Demo Asset | `core/demo/*` | A procedurally generated test skeleton (18 bones, 18 slots, 7 skins, 7 animations, 3 events, a mesh, a bounding box, slot color and attachment timelines), so the app works fully without external files |
+| MotionPlayer / PlaybackController | `HierarchyPanel`, `PlaybackBar`, `TimelineScrubber` | Switch animations from the tree or a dropdown, play / pause, loop, 0.1x to 2.0x speed, single-frame step forward and back, timeline scrubbing (without firing events), seconds and frame display, event markers |
+| Animation Mix Lab | `MixLabPanel` | defaultMix, A-to-B transition tests (mix duration and A hold time), live mix progress, per-pair from / to mix table, tracks 1 to 3 layered on top (animation, alpha, replace / add, loop, mute) |
+| Skins & Attachments | `HierarchyPanel`, `PropertiesPanel`, `SlotInspectorPanel` | Single or combined skins (`Skin.addSkin`), slots listed in draw order, live current attachment, hide a slot or force an attachment, highlight the selected slot on stage |
+| Debug Overlays | `DebugPanel`, `core/render/debugOverlay.ts` | Bone axes, slot points, region outlines, mesh hulls, mesh wireframes, bounding boxes, paths, clipping |
+| Event Monitor | `EventMonitorPanel` | Logs custom events (timestamp, track, animation, animation time, int / float / string / audio values), optionally start / interrupt / end / complete lifecycle events, with filtering, pause, clear and per-event counters |
+| Atlas Toolkit | `core/atlas/*`, `core/image/*`, `AtlasPanel` | Atlas page preview and region list; lossless reconstruction of every region from `bounds`, `rotate` and `offsets` (optionally restoring trimmed whitespace), single download or a full ZIP (with `atlas-manifest.json`); drop a PNG to hot-replace a region, affecting every region / mesh attachment that uses it, and applied to exports too |
+| Auditor | `core/audit/*`, `AuditPanel` | Counts bones, slots, current vertices and triangles, total asset vertices, meshes, weight influences, clipping, IK / Transform / Path / Physics constraints, atlas pages, estimated draw calls and animations against mobile budgets, with good / warning / heavy ratings per metric and overall |
+| Audio Sync | `core/audio/*`, `controller/audioBackend.ts`, `AudioPanel` | Drop in WAV / MP3 / OGG / M4A / FLAC; waveform, onsets and playhead in the panel and main timeline; audio offset, synced playback from 0 s, automatic offset suggestion from events; per-event millisecond difference to the nearest onset and alignment status; events can be bound to sounds and are triggered and counted during playback |
+| AssetExporter | `core/export/*`, `ExportDialog` | Four export types: PNG sequence ZIP (with `manifest.json`), Sprite Sheet (one image + TexturePacker JSON), current frame PNG, WebM clip; size by scale, fixed width / height in pixels, or a custom crop rectangle; fps, start and end frame, padding, transparent or solid background, sheet columns, WebM repeat count; cancellable. A live preview on the right renders the output with a frame slider, canvas / padding / content guides, an overflow warning, center / bottom alignment and horizontal / vertical offsets (applied to the real export). The custom crop mode mirrors the Spine export viewport: crop X, Y, width, height in skeleton units and an output scale; the area outside the crop is dimmed, dragging an edge or corner moves only that edge, dragging inside moves the whole crop, and the character never rescales |
+| Editor (animation editing, stage 1) | `core/editor/*`, `controller/features/editorFeature.ts`, `PropertiesPanel`, `HistoryPanel` | Keeps the original Spine 4.2 JSON as an editable document (3.6 binaries are editable after upgrade); every step is recorded as reversible patch operations (set, insert, remove, rename with key order kept) with undo, redo, jump to any history step, merging of consecutive edits to the same field, and up to 200 steps; edit bone names and setup pose, slot names, colors, default attachments and blend modes, event names and defaults, rename / duplicate / delete animations, skeleton fps; renames update every reference (parent bones, slots, IK / Transform / Path / Physics constraints, skins, animation timelines, draw order, clipping end slots, event keys); save as standard Spine 4.2 JSON or a project ZIP with JSON, atlas and textures; exports always use the edited skeleton |
+| Setup Mode (stage 2) | `core/gizmo/*`, `core/render/gizmoOverlay.ts`, `controller/features/gizmoFeature.ts`, `ViewportToolbar`, `StageView` | Stops the animation and shows the setup pose; pick bones on stage (the tree expands to them) and drag the gizmo: translate (parent-space X / Y arrows and free center), rotate (ring handle, continuous past 180 degrees), scale (uniform center and bone X / Y axes); live redraw with children and attachments following, live values in the properties panel and on stage; one history entry on release, Esc cancels; snapping (integer translation, 15 degree rotation, 0.1 scale) via the toolbar or by holding Shift |
+| Animate Mode / Dopesheet (stage 3) | `core/animation/*`, `controller/features/animateFeature.ts`, `components/dopesheet/Dopesheet.tsx` | Pauses the animation and opens the dopesheet; gizmo drags or edits to "current frame pose" write translate / rotate / scale keys at the current frame (auto key, on by default); with auto key off, changes are staged until K and discarded on frame change; key selected bones (K) or all bones (Shift+K); bones and channels with timelines on the left, frame ruler and key diamonds on the right; click, Ctrl / Shift multi-select, box select, drag to move (handling collisions and Bezier scaling), Delete, Ctrl+C / Ctrl+V to paste at the current frame, click the ruler or empty space to jump; every key change supports undo / redo |
+| Curve Editor / Extended Channels (stage 4) | `core/animation/curveShape.ts`, `components/dopesheet/CurveEditor.tsx`, `EventKeyEditor.tsx`, `SlotKeyEditor` in `PropertiesPanel` | A transition curve panel beside the dopesheet: linear / stepped / Bezier, drag in and out handles (one history entry on release), ease in / ease out / ease in-out / bounce / anticipate / snap presets applied to all selected segments, written back to 4.2 `curve` arrays; segment types are drawn as line styles. Slot attachment and color keys (switch or hide attachments, RGBA, alpha; slots already using split `rgb` / `alpha` or two-color timelines use those channels), event keys (add from the toolbar, drag, delete, copy and paste, edit name and int / float / string / volume / balance), all with undo / redo |
+| Constraints / Draw Order / Mesh Deform / Skins (stage 5) | `core/animation/drawOrder.ts`, `meshDeform.ts`, `core/editor/structureCommands.ts`, `controller/features/meshFeature.ts`, `components/properties/AdvancedEditors.tsx` | A constraint group in the tree: bones, target and setup values of IK and Transform constraints (mix, softness, bend direction, compress / stretch; every transform mix) are editable, and animate mode keys them with sliders or values; dragging an IK target solves the chain live. Slot draw order can move one layer forward / back or reset, written as draw order keys (minimal 4.x `offsets`). Select a mesh attachment, then click / Shift-click vertices on stage and drag them; the world delta is converted per bone weight into deform keys (weighted meshes supported), with select all and reset deform for the frame. Create blank animations, add / rename skins (deform timelines and linked mesh references follow), and bind attachments from other skins to a skin or remove them |
+| Delete Objects | `core/editor/deleteCommands.ts`, `InspectorController.deleteSelection`, `PropertiesPanel` | Select a bone, slot, attachment, constraint, skin, event or animation and press Delete (or the Delete button in the properties header): bones go with their children and slots, slots with their attachments in every skin, attachments are removed from all skins; timelines, skin references, path / physics constraints, clipping end slots and deform timelines are cleaned up, draw order keys are recomputed for the new slot order, and weighted mesh bone indices are remapped. The root bone and bones that remaining meshes are weighted to are refused. One undoable step |
+| Hierarchy / Properties | `components/tree/*`, `components/properties/*` | A Spine-editor style tree (bones with child bones and slots, slots with attachments, skins, animations, events, constraints) and a properties panel (setup pose, live values, slot visibility and attachments, skin activation, animation info with one-click export, event usage), highlighting the selected bone or slot on stage |
+
+### Quick Start
+
+Requires Node.js 20 or later.
+
+```bash
+npm ci
+npm run dev
+```
+
+Open the URL printed in the terminal; the demo asset loads automatically.
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Vite dev server (no CSP, so HMR works) |
+| `npm run build` | Type check, then build to `dist/` with the CSP meta injected |
+| `npm run preview` | Serve the production build with the full security headers (including `frame-ancestors`) |
+| `npm run typecheck` | TypeScript strict type check |
+| `npm run lint:rules` | No-comment and zero-emoji rule checks |
+| `npm run test` | Vitest unit and component tests |
+| `npm run test:coverage` | Unit test coverage (v8) |
+| `npm run test:e2e` | Playwright E2E tests (builds automatically and runs against the preview server) |
+| `npm run verify` | Runs all of the checks above in order |
+
+`dist/` is plain static files. Host it on any internal static server, or open it through a local server (not `file://`).
+
+### Supported Formats and Loading Rules
+
+| Type | Extensions |
+| --- | --- |
+| Skeleton (JSON) | `.json`, `.json.txt` (must contain a `skeleton` or `bones` structure; other JSON is skipped) |
+| Skeleton (binary) | `.skel`, `.skel.bytes` |
+| Atlas | `.atlas`, `.atlas.txt` |
+| Textures | `.png`, `.webp`, `.jpg`, `.jpeg`, `.avif` |
+| Archives | `.zip` (one nested level; `__MACOSX` and `._*` are ignored) |
+| Audio | `.wav`, `.mp3`, `.ogg`, `.oga`, `.m4a`, `.aac`, `.flac` (dropping one on the stage adds it to the audio panel without replacing the asset) |
+
+Loading rules:
+
+- Skeleton and atlas pairing priority: same folder and same base name, same base name anywhere, same folder, then the first atlas.
+- Atlas page textures are matched by path relative to the atlas, file name, then base name, all case-insensitive.
+- With several skeletons, the first is loaded and a dropdown in the asset panel switches between them.
+- Missing skeletons, atlases, textures or pages are listed in an error notice, and the current asset stays loaded.
+- The runtime is Spine 4.2. The version is read from JSON `skeleton.spine` or the binary header (4.x and 3.x header formats).
+
+| File version | Support |
+| --- | --- |
+| 4.2.x (JSON / binary) | Parsed directly |
+| 3.6.x binary `.skel` | Upgraded to the 4.2 structure on load, with an `UPGRADED 4.2` badge and notice |
+| 4.0 / 4.1 / 4.3 | Parsed with a version warning; may fail |
+| 3.x JSON, 3.7 / 3.8 binary | Not supported yet; a clear error asks you to re-export as 4.2 from the Spine editor |
+
+- The 3.6 upgrade follows how the Spine editor imports old files: rotation keys are unwrapped with the 3.x shortest-path rule, normalized 3.x Bezier curves become 4.x absolute curves, and constraint mixes, two-color tint, deform, draw order and events are all mapped; 3.6 `.atlas` fields are read by the runtime directly.
+- Atlases with `pma: true` are rendered and exported with premultiplied alpha.
+- With a region selected in the Atlas tab, a PNG dropped on the stage replaces that region instead of loading a new asset.
+- Safety limits: 512 MB total input, 512 MB unzipped, 4096 entries, nesting depth 2.
+
+### Interface and Shortcuts
+
+The UI text is Traditional Chinese, and the layout follows Spine editor habits: the stage in the middle, the hierarchy tree and properties on the right, playback and timeline at the bottom. Less common tools live in "Advanced Tools", which opens a drawer on the right side of the stage.
+
+Common tasks:
+
+- Change animation: click a name under "Animations" on the right, or use the dropdown at the left of the playback bar.
+- Inspect bones or slots: select them in the tree; the stage highlights them and the properties panel shows the setup pose and live values.
+- Change outfits: tick skins under "Skins"; several can be combined.
+- Hide or swap attachments: select a slot, then use "Hide this slot" or the "Assign attachment" menu in the properties panel.
+- Export: click "Export" at the top right, or "Export this animation" in an animation's properties. The right side of the dialog is a live preview: scrub frames with the slider; the amber dashed line is padding, the violet box is the content range and the green dashed box is the current pose; a warning appears when content leaves the canvas, and alignment and offsets fine-tune the position. You can also drag the crop frame directly in the preview, like the Spine export viewport: dragging an edge or corner moves only that edge, dragging inside moves the frame, double-click resets it to the character bounds, and the output size is crop size x scale.
+- Setup mode: click "Setup Mode" at the top left of the stage (or `S`); the animation stops and the setup pose is shown. Select a bone on stage or in the tree to get the gizmo; `W` / `E` / `R` switch translate / rotate / scale. Values update live while dragging, one step is recorded on release (Ctrl+Z to undo), and Esc cancels a drag. Playing or switching animations leaves setup mode.
+- Animate mode: choose an animation, click "Animate Mode" (or `A`) and the dopesheet appears. Click the ruler to pick a frame, then drag the gizmo or edit "current frame pose" values to write keys. In the dopesheet you can click, box select and drag keys, `Delete` them, and `Ctrl+C` / `Ctrl+V` paste at the current frame.
+- Curves and extended channels: select keys in the dopesheet and use the transition curve panel to switch linear / stepped / Bezier, drag the violet handles or apply presets. With a slot selected, "current frame" in the properties panel sets that frame's attachment, color and alpha. Pick an event in the dopesheet toolbar and click "Add event"; click an event diamond to edit its values.
+- Constraints, draw order, mesh deform and skins: select an IK or Transform constraint under "Constraints" in the tree to edit its mixes; in animate mode, a selected slot's draw order can be changed for the frame; select a mesh attachment and drag its yellow vertices on stage; the "Create" section of the skeleton properties adds blank animations and skins, and skin properties rename skins and bind or remove attachments.
+- Delete: select a bone, slot, attachment, constraint, skin, event or animation and press `Delete`, or click "Delete" at the top right of the properties panel; a bone is deleted together with its child bones and their slots. `Ctrl+Z` restores it.
+- Edit: change names or values in the properties panel; Enter or leaving the field applies, Esc cancels. Undo, redo and "Save JSON" are at the top right, an "unsaved changes" badge appears when needed, and closing the tab asks for confirmation. The "History" tab in Advanced Tools lists every step; click one to return to it. "Export project ZIP" in the skeleton properties writes JSON, atlas and textures together.
+
+| Key | Action |
+| --- | --- |
+| `Space` | Play / pause |
+| `Left` / `Right` | Step back / forward 1 frame |
+| `Shift + Left` / `Shift + Right` | Step back / forward 10 frames |
+| `Home` | Go to frame 0 |
+| `L` | Toggle loop |
+| `F` | Fit view |
+| `0` | Zoom 100% |
+| `B` | Bone overlay |
+| `S` | Toggle setup mode |
+| `A` | Toggle animate mode (opens the dopesheet) |
+| `K` / `Shift + K` | Animate mode: key the selected bone / all bones at the current frame |
+| `Delete` / `Backspace` | Delete selected keys |
+| `Delete` | With no keys selected, delete the selected object (bone with children and slots, slot, attachment, constraint, skin, event, animation); undoable |
+| `Ctrl + C` / `Ctrl + V` | Animate mode: copy selected keys / paste at the current frame |
+| `W` / `E` / `R` | Translate / rotate / scale gizmo in setup or animate mode |
+| `Shift` (while dragging the gizmo) | Temporarily toggle snapping |
+| `Ctrl + Z` | Undo |
+| `Ctrl + Shift + Z` / `Ctrl + Y` | Redo |
+| `Ctrl + S` | Save as Spine 4.2 JSON |
+| `Esc` | Cancel a gizmo drag; close Advanced Tools or the export dialog; cancel input in an edit field |
+
+### Architecture
+
+Layers:
+
+- UI (`src/components`, React): reads the Zustand stores only; every action goes through `InspectorController`.
+- Controller (`src/controller`): `InspectorController` coordinates asset lifecycle, playback, mixing, tracks, skins, slots, events, view and export; features handle the atlas, audio, audit, animate mode, setup mode gizmo, mesh deform, export preview and the editing session. `ControllerEnvironment` injects every browser dependency (rAF, clock, asset source, export backend, pixel readback and image decoding, Web Audio, resource disposal).
+- State (`src/store`): `inspectorStore` holds serializable UI state; `liveStore` holds per-frame live data (time, frame, track and mix progress, current attachments, zoom, pointer, FPS).
+- Core (`src/core`, no React): assets, spine, render, export, demo, playback, atlas, image, audit, audio, legacy (3.6 reader and 4.2 upgrade), animation (keyframe channels, curves, dopesheet model, draw order, mesh deform), gizmo, and editor (editable document, reversible patches, history, commands including deletion, serialization and project packaging).
+
+Data flow:
+
+1. Dropped or picked files become `VirtualFile[]`; ZIPs are expanded, skeleton, atlas and pages are paired and decoded into an `AssetSource`.
+2. `InspectorController.applySource` builds `SkeletonData` with the stage's WebGL context, creates a `SpineInstance` and writes an `AssetSummary` to the store.
+3. Every `requestAnimationFrame` advances the AnimationState, applies slot overrides, updates world transforms, collects events, publishes a live snapshot and draws the skeleton and overlays.
+4. Atlas unpacking reads raw texture pixels back from WebGL with premultiplication and color conversion disabled, copies each region according to its rotation and trim, and encodes PNGs with the built-in encoder, so semi-transparent pixels stay exact.
+5. Audio is decoded with Web Audio, mixed to mono, and analyzed for 2000 peak segments and energy onsets; synced playback schedules sources by offset and speed.
+6. Editing keeps the original 4.2 JSON as an immutable document. Each command produces patch operations; the new document is re-parsed with the existing atlas, and only a successful parse is recorded and swaps in a new `SpineInstance` while restoring animation, time, skins, tracks, mix pairs, slot overrides and region replacements. Undo and redo replay recorded inverse or forward operations.
+7. Setup mode drags write directly to the runtime BoneData for live feedback; on release the BoneData is restored and a single `setBoneTransform` command goes through the editing flow.
+8. Animate mode converts the runtime local pose into 4.x timeline values and writes keys at the current frame; unmodified keys keep their original JSON objects.
+9. Curves are edited in normalized segment coordinates and written as 4.x absolute `curve` arrays per value channel.
+10. Mesh deform converts the world drag delta through each bone weight's inverse world matrix, so the vertex moves exactly by the drag; keys are written as trimmed `offset` + `vertices`.
+11. Draw order keys use the longest increasing subsequence to find slots that do not move, and write the rest as `{ slot, offset }`.
+12. Export uses an independent `OffscreenSpineRenderer` with its own WebGL context, rebuilding the skeleton from the same `AssetSource`; screenshots copy the current pose exactly with `transferPose`, sequences and WebM sample frames with `seek`. The preview and the real export share one framing calculation (`core/export/placement.ts`).
+
+Key design points:
+
+- `SpineInstance` depends only on `@esotericsoftware/spine-core`, so playback, mixing, events and overrides are fully tested in Node with fake textures.
+- Scrubbing resets `trackTime`, `animationLast` and `trackLast` so events never fire twice; single-frame steps do fire crossed events.
+- Slot overrides are applied after `AnimationState.apply`, so they win over attachment timelines.
+- The edit document is copy-on-write; removed object keys return to their original position, so undoing every edit reproduces the loaded document exactly (key order and values).
+
+### Directory Layout
+
+```
+spine-asset-inspector/
+  csp.config.ts                 Single source of CSP directives (meta and preview headers)
+  vite.config.ts                Build config and CSP injection plugin
+  vitest.config.ts              Unit tests (core: node, dom: jsdom)
+  playwright.config.ts          E2E config (build, then run against the preview server)
+  scripts/                      Rule checker (no comments, zero emoji)
+  src/
+    core/                       Framework-free logic (assets, spine, render, export, atlas, image, audit, audio, legacy, gizmo, animation, editor, demo, playback)
+    controller/                 InspectorController, environment injection, features
+    store/                      inspectorStore, liveStore, defaults
+    hooks/                      Keyboard shortcuts, unsaved-changes guard
+    components/                 layout, tree, properties, dopesheet, edit, export, stage, panels, ui
+  tests/
+    unit/                       Vitest unit and component tests
+    e2e/                        Playwright E2E tests
+    support/                    Fake textures, fake controller environment, PNG decoder, WAV synthesis, demo files, Spine 3.6 binary writer
+  docs/
+    HANDOFF.md
+```
+
+The detailed per-file layout is listed in the Chinese section below.
+
+### File and Code Conventions
+
+| Rule | Content | Check |
+| --- | --- | --- |
+| No comments | No line, block, JSDoc, JSX, CSS or HTML comments or shebangs in `src`, `scripts`, `tests`, root config files and `index.html` | `npm run lint:comments`, `tests/unit/rules.test.ts` |
+| Zero emoji | No emoji, flags, keycaps, skin tone modifiers or variation selectors in code, tests, scripts, docs, README, `package.json` or `LICENSE` | `npm run lint:emoji`, `tests/unit/rules.test.ts` |
+| Types | TypeScript `strict`, `noUnusedLocals`, `noUnusedParameters`, `noImplicitOverride` | `npm run typecheck` |
+| Module boundaries | `core` never imports React, stores or the controller; components never touch `SpineInstance` directly | Code review |
+| UI text | Plain text and technical label badges, Lucide line icons only | `lint:emoji` |
+| Test hooks | Interactive elements carry `data-testid`; E2E relies only on `data-testid` and accessibility attributes | E2E |
+| Identity and license | `package.json` author `zzoraemon043`, MIT license, committer `zzoraemon043 <195147269+zzoraemon043@users.noreply.github.com>` | Code review |
+
+The no-comment rule walks the TypeScript syntax tree and inspects comment trivia around every token, so `//` and `/*` inside strings, templates, regular expressions and JSX text are not false positives; CSS strings are masked first. The zero-emoji rule matches `\p{Extended_Pictographic}`, `\p{Regional_Indicator}`, `U+FE0F`, `U+20E3`, skin tone modifiers and tag characters; CJK text, box drawing characters and ordinary symbols are unaffected.
+
+### Performance Audit Budgets
+
+A value at or below the "good" limit is good, at or below the "warning" limit is a warning, and above it is heavy; the overall rating is the worst metric. The budgets target a mid-range phone at 60 FPS with one character on screen, and live in `src/core/audit/budgets.ts`.
+
+| Metric | Good | Warning | Calculation |
+| --- | --- | --- | --- |
+| Bones | 60 | 100 | `SkeletonData.bones` |
+| Slots | 60 | 100 | `SkeletonData.slots` |
+| Current vertices | 800 | 1500 | Visible region (4) and mesh vertices in the current pose |
+| Current triangles | 600 | 1200 | Region (2) and mesh triangles |
+| Total asset vertices | 3000 | 6000 | All unique region / mesh vertices across skins |
+| Mesh attachments | 20 | 40 | MeshAttachment count |
+| Weight influences | 2000 | 4000 | Total bone influences of weighted meshes |
+| Clipping attachments | 0 | 2 | ClippingAttachment count |
+| IK constraints | 8 | 16 | |
+| Transform constraints | 8 | 16 | |
+| Path constraints | 2 | 5 | |
+| Physics constraints | 4 | 10 | |
+| Atlas pages | 1 | 3 | |
+| Estimated draw calls | 3 | 6 | Texture or blend mode switches and clipping starts in draw order |
+| Animations | 40 | 80 | |
+
+Current vertices, triangles and draw calls are recomputed on load, skin changes, slot overrides and region replacement; after changing animation or frame, click "Measure current pose".
+
+### Security and Privacy
+
+- 100% local: no backend, telemetry, CDN fonts or external scripts; assets, replacement textures and audio exist only in browser memory.
+- The production build injects a CSP meta tag at the top of `<head>`, and `npm run preview` also sends full security headers: `default-src 'none'`, `script-src 'self'`, `style-src 'self'`, `img-src 'self' blob: data:`, `media-src 'self' blob:`, `font-src 'self'`, `connect-src 'none'` (blocks fetch, XHR and WebSocket), `'none'` for workers, frames, objects, manifests, `base-uri` and `form-action`, and `frame-ancestors 'none'` in the header.
+- Other headers: `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy: same-origin`, and a `Permissions-Policy` disabling camera, microphone, geolocation, payment and USB. When deploying elsewhere, send `CSP_HEADER` from `csp.config.ts` as an HTTP response header.
+- E2E tests verify the CSP header and meta, that outbound `fetch` is blocked with a `securitypolicyviolation`, and that normal use produces no CSP violations or console errors.
+
+### Testing
+
+| Category | Tool | Coverage |
+| --- | --- | --- |
+| Type check | `tsc --noEmit` | All source, tests and config files |
+| Rule checks | `scripts/run-rule.mjs` | No comments, zero emoji; failures list file and line |
+| Unit tests (core project, Node) | Vitest | Asset loading, playback, mixing, export planning and framing, atlas slicing and PNG encoding, audit, audio, the 3.6 upgrade, the editing core (patches, history, every command and its reference updates, deletion with reference cleanup, lossless serialization), gizmo math, keyframe channels, curves, slot and event channels, draw order, mesh deform, constraints, skins, and controller flows |
+| Component tests (dom project, jsdom) | Vitest + Testing Library | Tree, properties panel, export dialog (settings, preview guides, overflow warnings, frame slider, crop frame dragging, crop fields and reset), panels, edit fields, undo / redo / save shortcuts, setup and animate mode toolbars and shortcuts, dopesheet, curve panel, event and slot keys, stage 5 editors, Delete for keys and objects |
+| E2E (production build + preview server) | Playwright + Chromium | Rendering, CSP, playback, mixing, skins, slots, debug overlays, events, loading, every export type with decoded output, export preview and crop dragging with the exported PNG size, atlas pixel comparisons, region replacement, audit, audio, 3.6 loading, editing with pixel-exact undo / redo, setup mode and animate mode with real mouse drags, curves, slot and event keys, IK, draw order, mesh deform, skins, and deleting a bone with Delete and restoring it with Ctrl+Z |
+
+```bash
+npm run verify
+```
+
+Or run the steps separately: `npm run typecheck`, `npm run lint:rules`, `npm run test`, `npm run test:coverage`, `npm run test:e2e`.
+
+E2E uses the Chromium in `/opt/pw-browsers` by default; set `PW_CHROMIUM_PATH` for another binary or run `npx playwright install chromium`. `E2E_SKIP_BUILD=1` skips the build and `E2E_PORT` sets the preview port. Environments without a GPU render WebGL with SwiftShader.
+
+### Known Limitations
+
+- The runtime is Spine 4.2. 3.6 binaries are upgraded automatically; 3.x JSON and 3.7 / 3.8 binaries are not supported yet; 4.0 / 4.1 / 4.3 show a version warning and may fail.
+- After a 3.6 upgrade, poses are computed by the 4.2 runtime; small runtime differences between 3.x and 4.x (for example transform inheritance details) may differ from old game builds.
+- Single-frame screenshots copy the current pose exactly; PNG sequences and WebM sample only the chosen animation on track 0 (with current skins and slot overrides), without layered tracks or mix transitions.
+- WebM is recorded in real time with `MediaRecorder`; alpha depends on the browser's VP9 / VP8 encoder. Chromium has the best support; Firefox and Safari may drop alpha or not support it.
+- Each exported frame is at most 4096 pixels on its longest side, with up to 600 frames; a Sprite Sheet is at most 4096x4096.
+- Not yet supported in the editor: creating shear keys, a two-color (dark color) editing UI, editing and keying Path and Physics constraints, Sequence keys, changing setup draw order (only draw order keys), box selecting mesh vertices, and creating new bones, slots or attachments.
+- Constraint `order` comes from the source file; hand-written JSON where several constraints lack `order` activates only one of them in the 4.2 runtime.
+- A Spine Bezier segment has only two control points, so the "bounce" preset overshoots once; build multiple bounces from several keys.
+- Keys rewritten by curve edits omit fields equal to their defaults (for example `time: 0`); the content is equivalent, and untouched keys keep their original form.
+- Animate mode temporarily disables layered tracks (restored on exit); the dopesheet shows only the track 0 animation, at a fixed 16 pixels per frame without zoom, and keys move in whole frames.
+- The gizmo has no shear or length handles; one bone at a time, no multi-select.
+- Spine 4.x binary `.skel` files are view and export only; export JSON from the Spine editor to edit.
+- Edits are always saved as Spine 4.2 JSON; upgraded 3.6 files cannot be saved back as 3.6. The project ZIP contains the originally loaded atlas and textures; region replacements are not written.
+- Edit history lives only in the current tab; reloading or loading another asset clears it, so save JSON before leaving.
+- The event log keeps the latest 1000 entries and shows the latest 300.
+- Region replacement fills the region's original size (trim offsets are not kept), lasts for the session only, and does not cover Sequence attachments.
+- Atlas unpacking supports 0 / 90 / 180 / 270 degree rotation and `offsets` whitespace; `split` / `pad` nine-patch data is not exported.
+- Onset detection compares energy and suits short percussive sounds; alignment for long tones or music is a rough guide.
+- Synced audio and event sounds are scheduled in real time and stop on pause, single-frame steps and scrubbing.
+- Physics constraints are reset when seeking or stepping, and accumulate state only during continuous playback.
+
+### License
+
+MIT License, Copyright (c) 2026 zzoraemon043. See [LICENSE](LICENSE).
+
+Spine Runtimes are distributed under the Esoteric Software Spine Runtimes License; using them in a product requires a valid Spine editor license. This project only references the official runtimes through npm and contains no Esoteric Software sample art; the 3.6 binary upgrader is implemented from the publicly documented 3.6 file format. The repository contains no third-party character assets; keep real assets local when testing and do not commit them.
+
+---
+
+## 繁體中文
+
+純前端、可離線運作的 2D 遊戲 Spine 骨骼動畫資產檢驗工作台。提供動畫預覽、逐影格控制、動作過渡與多軌道混合調校、換皮換裝組裝、插槽部件檢視、除錯線框、自訂事件監聽、圖集拆解與紋理熱替換、骨架效能體檢、音訊事件對齊、動畫編輯，以及透明背景的 PNG / PNG 序列 / Sprite Sheet / WebM 匯出。所有解析與渲染都在瀏覽器本機完成，不上傳任何資產。
+
+### 目錄
 
 1. [功能總覽](#功能總覽)
 2. [快速開始](#快速開始)
@@ -23,7 +317,7 @@
 
 ---
 
-## 功能總覽
+### 功能總覽
 
 | 模組 | 對應元件 | 能力 |
 | --- | --- | --- |
@@ -44,11 +338,12 @@
 | Animate Mode / Dopesheet（動畫編輯第 3 階段） | `core/animation/*`、`controller/features/animateFeature.ts`、`components/dopesheet/Dopesheet.tsx` | 動畫模式暫停目前動畫並開啟律動表；控制軸拖曳或屬性面板「目前影格姿勢」的修改寫入目前影格的位移 / 旋轉 / 縮放關鍵影格（自動 K 幀，預設開啟），關閉自動 K 幀時變更先暫存、按 K 才寫入、換影格即捨棄；K 幀選取骨骼（K）與全部骨骼（Shift+K）；律動表左側列出有時間軸的骨骼與通道，右側影格刻度與關鍵影格菱形，可點選、Ctrl / Shift 多選、框選、拖曳移動（自動處理撞格與貝茲曲線比例）、Delete 刪除、Ctrl+C / Ctrl+V 複製貼上到目前影格，點刻度或空白處跳到該影格；所有關鍵影格變更都進入復原 / 重做 |
 | Curve Editor / Extended Channels（動畫編輯第 4 階段） | `core/animation/curveShape.ts`、`components/dopesheet/CurveEditor.tsx`、`EventKeyEditor.tsx`、`PropertiesPanel` 的 `SlotKeyEditor` | 律動表右側「過渡曲線」面板：線性 / 步進 / 貝茲切換、以控制桿拖曳進出切線（放開才寫入一筆歷史）、緩入 / 緩出 / 緩入緩出 / 回彈 / 預備 / 急停預設一鍵套用到所有選取區段，寫回 4.2 `curve` 陣列；律動表以線條樣式標示每段曲線類型。插槽部件與顏色關鍵影格（部件切換或隱藏、RGBA 顏色、透明度；已使用 `rgb` / `alpha` 分離或雙色時間軸的插槽會寫入對應通道），事件關鍵影格（工具列新增、拖曳移動、刪除、複製貼上，右側面板編輯事件名稱與整數 / 小數 / 字串 / 音量 / 平衡），全部接入復原 / 重做 |
 | Constraints / Draw Order / Mesh Deform / Skins（動畫編輯第 5 階段） | `core/animation/drawOrder.ts`、`meshDeform.ts`、`core/editor/structureCommands.ts`、`controller/features/meshFeature.ts`、`components/properties/AdvancedEditors.tsx` | 階層樹新增「限制器」群組：IK 與變換限制器的受控骨骼、目標、設置值（權重、柔軟度、彎曲方向、壓縮 / 伸展；各項變換權重）可編輯，動畫模式以滑桿或數值寫入限制器關鍵影格；拖曳 IK 目標骨骼時骨骼鏈即時反向運算。插槽「繪製順序」可往前 / 往後一層或還原設置順序，寫入繪製順序關鍵影格（以最少位移輸出 4.x `offsets`）。選取網格部件後在畫面點選 / Shift 加選頂點並拖曳，依頂點權重換算每根骨骼的位移寫入變形關鍵影格（支援加權網格），可全選、重設此影格變形。新增空白動畫、新增 / 重新命名皮膚（同步更新變形時間軸與連結網格引用），以及將其他皮膚的部件綁定到指定皮膚或移除 |
+| 刪除物件 | `core/editor/deleteCommands.ts`、`InspectorController.deleteSelection`、`PropertiesPanel` | 選取骨骼、插槽、部件、限制器、皮膚、事件或動畫後按 Delete（或屬性面板標題列的「刪除」）：骨骼連同子骨骼與其插槽、插槽連同各皮膚的部件、部件從所有皮膚移除；同步清除時間軸、皮膚引用、路徑 / 物理限制器、裁切結束插槽與變形時間軸，繪製順序關鍵影格依新的插槽順序重算，加權網格的骨骼索引重新對應；根骨骼與仍被其他網格權重綁定的骨骼會拒絕刪除；整筆為一個可復原步驟 |
 | Hierarchy / Properties | `components/tree/*`、`components/properties/*` | 參考 Spine 編輯器習慣的階層樹（骨骼含子骨骼與插槽、插槽含部件、皮膚、動畫、事件）與屬性面板（依選取項目顯示設置姿勢、即時數值、插槽顯示與部件、皮膚套用、動畫資訊與一鍵匯出、事件出現位置），並在畫面高亮選取的骨骼或插槽 |
 
 ---
 
-## 快速開始
+### 快速開始
 
 需求：Node.js 20 以上。
 
@@ -75,7 +370,7 @@ npm run dev
 
 ---
 
-## 支援的資產格式與載入規則
+### 支援的資產格式與載入規則
 
 | 類型 | 副檔名 |
 | --- | --- |
@@ -108,7 +403,7 @@ npm run dev
 
 ---
 
-## 介面導覽與快捷鍵
+### 介面導覽與快捷鍵
 
 介面全部為繁體中文，版面參考 Spine 編輯器的使用習慣：中間是畫面、右側是階層樹與屬性、下方是播放列與時間軸。不常用的工具收在「進階工具」，按下後才會在畫面右側展開。
 
@@ -171,9 +466,9 @@ npm run dev
 
 ---
 
-## 架構
+### 架構
 
-### 分層
+#### 分層
 
 ```
 UI 層 (React 元件, src/components)
@@ -210,7 +505,7 @@ UI 層 (React 元件, src/components)
           editor   可編輯文件（原始 4.2 JSON）、可逆修補運算、編輯歷史與工作階段、編輯指令、序列化與專案封裝
 ```
 
-### 資料流
+#### 資料流
 
 1. 使用者拖曳檔案或選取檔案，`browserFiles` 轉為 `VirtualFile[]`，`archive` 展開 ZIP，`bundleResolver` 配對出骨架、圖集與頁面貼圖，再解碼為 `ImageBitmap`，組成 `AssetSource`。
 2. `InspectorController.applySource` 呼叫 `buildSkeleton`，以舞台的 WebGL 環境建立貼圖並解析 `SkeletonData`，建立 `SpineInstance`，產生 `AssetSummary` 寫入 store。
@@ -225,7 +520,7 @@ UI 層 (React 元件, src/components)
 11. 繪製順序：以設置順序在目標順序中的最長遞增子序列判定不需移動的插槽，其餘輸出 `{ slot, offset }`，與 Spine 讀取演算法互為反運算。
 12. 匯出時建立獨立的 `OffscreenSpineRenderer`（自有 WebGL 環境與貼圖），以同一份 `AssetSource` 重建骨架並套用相同皮膚與覆寫；截圖以 `transferPose` 精確複製目前姿勢（含混合與多軌），序列與 WebM 以 `seek` 逐格取樣。
 
-### 關鍵設計
+#### 關鍵設計
 
 - `SpineInstance` 只依賴 `@esotericsoftware/spine-core`，可在 Node 測試環境以假貼圖完整驗證播放、混合、事件與覆寫邏輯。
 - 時間軸定位透過重設 `trackTime`、`animationLast` 與 `trackLast`，確保拖曳時不重複觸發事件；單影格前進則會觸發跨越的事件，方便對齊音效與判定。
@@ -237,7 +532,7 @@ UI 層 (React 元件, src/components)
 
 ---
 
-## 目錄結構
+### 目錄結構
 
 ```
 spine-asset-inspector/
@@ -258,7 +553,7 @@ spine-asset-inspector/
       assets/    virtualFile  fileClassifier  archive  atlasPages  bundleResolver  browserFiles
       spine/     SpineInstance  skeletonFactory  summarize  versionDetect  poseTransfer
       render/    camera  StageRenderer  debugOverlay  focusBounds  gizmoOverlay
-      export/    exportPlan  placement  OffscreenSpineRenderer  exporters  webm  download
+      export/    exportPlan  placement  previewDrag  OffscreenSpineRenderer  exporters  webm  download
       atlas/     atlasModel  atlasSlicer  atlasArchive  regionOverride
       image/     pngEncode  pixelReader
       audit/     budgets  performanceAudit
@@ -266,11 +561,11 @@ spine-asset-inspector/
       legacy/    binaryInput  curves  spine36Binary
       gizmo/     types  affine  layout  drag  pick  runtimePose
       animation/ channels  keyOps  keyCommands  dopesheet  poseKeys  curveShape  drawOrder  meshDeform
-      editor/    json  patch  history  session  document  commands  structureCommands  serialize  projectArchive
+      editor/    json  patch  history  session  document  commands  structureCommands  deleteCommands  serialize  projectArchive
       demo/      demoSkeleton  demoRegions  demoTexture  demoAsset
       playback/  timeMath
     controller/  InspectorController  types  browserEnvironment  audioBackend  ControllerContext
-      features/  host  atlasFeature  audioFeature  auditFeature  editorFeature  gizmoFeature  animateFeature  meshFeature
+      features/  host  atlasFeature  audioFeature  auditFeature  editorFeature  gizmoFeature  animateFeature  meshFeature  exportPreviewFeature
     store/       inspectorStore  liveStore  defaults
     hooks/       useKeyboardShortcuts  useUnsavedGuard
     components/
@@ -279,7 +574,7 @@ spine-asset-inspector/
       properties/ PropertiesPanel  AdvancedEditors  sections
       dopesheet/ Dopesheet  CurveEditor  EventKeyEditor
       edit/      EditFields
-      export/    ExportDialog  ExportPreviewPanel
+      export/    ExportDialog  ExportSizeSection  ExportPreviewPanel  PreviewDragLayer  exportFields
       stage/     StageView  ViewportToolbar  StageHud  PlaybackBar  TimelineScrubber  WaveformCanvas  eventColor
       panels/    MixLabPanel  SlotInspectorPanel  DebugPanel  EventMonitorPanel  AudioPanel  AtlasPanel  AuditPanel  HistoryPanel
       ui/        Badge  Button  Panel  Slider  Toggle  Select  TextInput  Tabs  cx
@@ -293,7 +588,7 @@ spine-asset-inspector/
 
 ---
 
-## 檔案與程式碼規範
+### 檔案與程式碼規範
 
 | 規範 | 內容 | 自動檢驗 |
 | --- | --- | --- |
@@ -309,7 +604,7 @@ spine-asset-inspector/
 
 ---
 
-## 效能體檢基準
+### 效能體檢基準
 
 評級規則：數值小於等於「優良上限」為優良，小於等於「警告上限」為警告，超過為過重；整體評級取所有指標中最差者。基準定位為中階手機、60 FPS、單一角色同屏，定義於 `src/core/audit/budgets.ts`，可依專案調整。
 
@@ -335,7 +630,7 @@ spine-asset-inspector/
 
 ---
 
-## 安全性與隱私
+### 安全性與隱私
 
 - 100% 本地運作：沒有任何後端、遙測、CDN 字型或外部腳本，資產、替換貼圖與音效只存在瀏覽器記憶體。
 - 正式建置於 `<head>` 最前方注入 CSP meta，`npm run preview` 另外送出完整安全標頭。
@@ -359,9 +654,9 @@ E2E 測試會驗證：CSP 標頭與 meta 內容、對外 `fetch` 被阻擋且觸
 
 ---
 
-## 測試
+### 測試
 
-### 自動化檢查一覽
+#### 自動化檢查一覽
 
 | 類別 | 工具 | 內容 |
 | --- | --- | --- |
@@ -371,7 +666,7 @@ E2E 測試會驗證：CSP 標頭與 meta 內容、對外 `fetch` 被阻擋且觸
 | 元件測試（dom 專案，jsdom） | Vitest + Testing Library | 階層樹（選取、展開、搜尋、皮膚勾選、動畫切換）、屬性面板、匯出對話框（設定與執行、預覽輔助線與超出畫布警告、影格滑桿、裁剪框單邊拖曳與平移、框外遮罩、裁剪欄位與重設）、插槽、事件、除錯、混合實驗室、圖集、體檢、音訊面板；屬性面板編輯欄位（Enter 套用、Esc 取消、無效值還原、重複名稱提示）、歷史頁籤跳轉、頂列復原 / 重做 / 儲存、Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y / Ctrl+S、未儲存時的離開提醒；設置模式工具列（模式、吸附、唯讀停用）、S / W / E / R / Esc 快捷鍵、拖曳中畫面提示與屬性面板即時數值；律動表（列與通道、收合、點選 / Ctrl 切換 / Shift 加選 / 骨骼總覽選取、拖曳移動、框選、點空白跳格、刻度拖曳、工具列 K 幀 / 複製 / 貼上 / 刪除 / 自動 K 幀、暫存提示）、動畫模式工具列與畫面提示、目前影格姿勢欄位、K / Shift+K / Delete / Ctrl+C / Ctrl+V / A 快捷鍵；曲線面板（無可編輯區段提示、類型切換、預設套用到多段、控制桿拖曳與夾限、放開才寫入歷史）、事件新增與參數編輯、插槽部件 / 顏色 / 透明度 / 整組 K 幀與插槽列收合；新增空白動畫與皮膚、皮膚綁定 / 改名 / 移除部件、限制器樹節點與設置值 / 滑桿 K 幀、繪製順序前後移動與還原、網格頂點全選 / 取消 / 重設變形 |
 | E2E（正式建置 + 預覽伺服器） | Playwright + Chromium | 啟動與渲染、CSP 阻擋網路、無 CSP 違規、動作切換與事件標記、暫停與逐格、時間軸拖曳、速率與循環與快捷鍵、縮放平移、A 至 B 過渡與混合進度、混合配對、多軌疊加、皮膚組裝、插槽隱藏與指定、除錯線框、事件紀錄與篩選與生命週期、檔案選取載入、ZIP 拖放載入、缺件錯誤、匯出對話框：透明 PNG（解碼驗證 Alpha）、指定寬高與起訖影格與純色背景的 PNG 序列（逐格尺寸與背景色）、Sprite Sheet（大圖尺寸與 JSON 座標）、WebM（EBML 標頭）、從動畫屬性開啟匯出、匯出預覽畫布有實際像素並可切換影格與底部對齊與純色背景、偏移套用到實際匯出 PNG、以滑鼠拖曳裁剪框單邊時只有該邊移動、角色大小不變、匯出 PNG 尺寸等於裁剪範圍 x 縮放倍率；階層樹選取骨骼與插槽並於屬性面板隱藏部件、圖集 ZIP 與示範貼圖逐像素比對、本機載入 Alpha 1 至 255 漸層頁面的逐像素無損比對、單張 Region 下載、Region 熱替換改變舞台與 Draw Calls 並可還原、拖入 PNG 熱替換選取 Region、效能體檢數值與隨皮膚變化、音效載入與波形與起音點、事件對齊狀態與偏移、事件觸發計數、同步試聽與暫停停止、拖入音效不取代資產、合成 3.6 二進位載入與升級徽章、本機 3.6 參考角色存在時載入渲染並觸發事件；編輯骨骼旋轉後畫面改變、復原後畫面與原始逐像素相同、重做後與編輯後相同、動畫改名與 Ctrl+Z / Ctrl+Shift+Z、重複名稱拒絕、儲存 JSON 下載內容、Ctrl+S 與專案 ZIP 內容、歷史頁籤跳轉、3.6 升級資產編輯後存成 4.2 JSON、本機 3.6 參考角色存成 4.2 JSON 後再載入；設置模式以滑鼠實際拖曳位移控制軸（拖曳中面板數值即時改變且尚未產生歷史、放開後一筆「移動骨骼」、復原後畫面與拖曳前逐像素相同）、旋轉父骨骼後子骨骼繞原點跟隨、單軸縮放加吸附、畫面點選骨骼、Esc 取消拖曳、面板改數值後畫面與控制軸即時更新、按播放離開設置模式；動畫模式以滑鼠旋轉控制軸自動 K 幀（菱形出現、復原後畫面逐像素回到原狀）、滑鼠拖曳關鍵影格到新影格並 Ctrl+Z 還原、框選後 Ctrl+C / Ctrl+V 到其他影格再 Delete、關閉自動 K 幀的暫存提示與 K 寫入三個通道後儲存 JSON 驗證數值；套用緩入預設後畫面改變、滑鼠拖曳控制桿、兩次復原後畫面逐像素回到線性、切換步進；插槽部件隱藏的關鍵影格與復原、透明度與顏色關鍵影格；新增事件並編輯參數後儲存 JSON 驗證、拖曳事件 4 格再刪除；拖曳 IK 目標後手肘位置改變、IK 權重滑桿 K 幀、繪製順序往後 8 層後復原畫面逐像素相同、滑鼠拖曳網格頂點寫入變形且未選頂點不動、新增空白動畫與皮膚並綁定部件；選取骨骼按 Delete 後子骨骼一併消失、Ctrl+Z 後畫面逐像素回到原狀、根骨骼拒絕刪除 |
 
-### 執行
+#### 執行
 
 ```bash
 npm run verify
@@ -391,14 +686,14 @@ E2E 預設使用 `/opt/pw-browsers` 內的 Chromium，可用 `PW_CHROMIUM_PATH` 
 
 ---
 
-## 已知限制
+### 已知限制
 
 - 執行環境為 Spine 4.2。3.6 二進位會自動升級；3.x JSON 與 3.7 / 3.8 二進位尚未支援；4.0 / 4.1 / 4.3 會顯示版本警告，解析可能失敗。
 - 3.6 自動升級後的畫面以 4.2 執行環境計算，少數 3.x 與 4.x 執行環境本身的差異（例如縮放繼承模式的細部算法）可能與舊版遊戲端略有不同，請與原編輯器畫面比對。
 - 單影格截圖精確複製目前姿勢；PNG 序列與 WebM 只取樣 Track 0 指定動作（含目前皮膚與插槽覆寫），不包含多軌疊加與混合過渡。
 - WebM 以 `MediaRecorder` 依實際時間錄製，透明通道取決於瀏覽器的 VP9 / VP8 編碼器，Chromium 系列支援最完整；Firefox 與 Safari 可能輸出不含 Alpha 的影片或不支援。
 - 單一匯出每格最長邊 4096 像素、最多 600 影格；Sprite Sheet 整張大圖不超過 4096x4096。
-- 動畫編輯第 1 至 5 階段已全部完成。仍未支援：斜切關鍵影格的建立、雙色（暗色）的編輯介面、Path 與 Physics 限制器的編輯與關鍵影格、Sequence 關鍵影格、設置姿勢的繪製順序調整（只能以動畫關鍵影格改變順序）、網格頂點框選、刪除皮膚或動畫以外的結構（骨骼、插槽、部件的新增刪除）。
+- 動畫編輯第 1 至 5 階段已全部完成。仍未支援：斜切關鍵影格的建立、雙色（暗色）的編輯介面、Path 與 Physics 限制器的編輯與關鍵影格、Sequence 關鍵影格、設置姿勢的繪製順序調整（只能以動畫關鍵影格改變順序）、網格頂點框選、新增骨骼、插槽與部件（刪除已支援，見上方 Delete 說明）。
 - 限制器的 `order` 由原檔決定；從零手寫且多個限制器都沒有 `order` 的 JSON，4.2 執行環境只會啟用其中一個（這是執行環境的排序規則）。
 - 一段 Spine 貝茲曲線只有兩個控制點，無法做出多次彈跳；「回彈」預設為超出終點後回到終點的單次回彈，需要多次彈跳請以多個關鍵影格組成。
 - 曲線改回線性或重新寫入的關鍵影格會省略與預設值相同的欄位（例如 `time: 0`、`value: 0`），內容等價但與原檔寫法不同；未修改的關鍵影格保持原樣。
@@ -418,7 +713,7 @@ E2E 預設使用 `/opt/pw-browsers` 內的 Chromium，可用 `PW_CHROMIUM_PATH` 
 
 ---
 
-## 授權
+### 授權
 
 MIT License，Copyright (c) 2026 zzoraemon043。詳見 [LICENSE](LICENSE)。
 
