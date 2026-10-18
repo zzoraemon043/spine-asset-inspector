@@ -1,0 +1,65 @@
+import { test, expect, pause, stageShot, openTool } from './fixtures'
+
+test.describe('skins, slots and debug overlays', () => {
+  test('composes skins from the hierarchy tree', async ({ app }) => {
+    await pause(app)
+    await expect(app.getByTestId('status-skins')).toHaveText('皮膚 3/7')
+    const composed = await stageShot(app)
+    await app.getByTestId('skin-toggle-armor/blue').check()
+    await expect(app.getByTestId('status-skins')).toHaveText('皮膚 4/7')
+    for (const skin of ['armor/red', 'armor/blue', 'helmet/knight', 'weapon/sword']) await app.getByTestId(`skin-toggle-${skin}`).uncheck()
+    await expect(app.getByTestId('status-skins')).toHaveText('皮膚 0/7')
+    expect((await stageShot(app)).equals(composed)).toBe(false)
+  })
+
+  test('selects bones and slots from the tree and edits slots in properties', async ({ app }) => {
+    await pause(app)
+    await app.getByTestId('tree-bone-torso').click()
+    await expect(app.getByTestId('properties-title')).toHaveText('torso')
+    await expect(app.getByTestId('bone-live-rotation')).toContainText('度')
+    await app.getByTestId('tree-filter').fill('weapon')
+    await app.getByTestId('tree-slot-weapon').click()
+    await expect(app.getByTestId('prop-slot-current-weapon')).toHaveText('weapon')
+    const before = await stageShot(app)
+    await app.getByTestId('prop-slot-visibility-weapon').click()
+    await expect(app.getByTestId('prop-slot-current-weapon')).toHaveText('none')
+    expect((await stageShot(app)).equals(before)).toBe(false)
+    await app.getByTestId('tree-filter').fill('')
+    await app.getByTestId('animation-item-attack').click()
+    await expect(app.getByTestId('properties-title')).toHaveText('attack')
+  })
+
+  test('toggles individual attachments in the slot inspector', async ({ app }) => {
+    await pause(app)
+    await openTool(app, 'slots')
+    await expect(app.getByTestId('slot-current-weapon')).toHaveText('weapon')
+    const before = await stageShot(app)
+    await app.getByTestId('slot-visibility-weapon').click()
+    await expect(app.getByTestId('slot-current-weapon')).toHaveText('無')
+    await app.getByTestId('slot-attachment-helmet').selectOption('__none__')
+    await expect(app.getByTestId('slot-current-helmet')).toHaveText('無')
+    expect((await stageShot(app)).equals(before)).toBe(false)
+    await expect(app.getByTestId('tab-slots')).toContainText('2')
+    await app.getByTestId('slot-select-torso').click()
+    await expect(app.getByTestId('slot-row-torso')).toHaveClass(/border-accent-500/)
+    await app.getByTestId('slots-reset').click()
+    await expect(app.getByTestId('slot-current-weapon')).toHaveText('weapon')
+    await app.getByTestId('slot-filter').fill('leg')
+    await expect(app.locator('[data-testid^="slot-row-"]')).toHaveCount(4)
+  })
+
+  test('draws debug overlays on the stage', async ({ app }) => {
+    await pause(app)
+    await app.getByTestId('toggle-axes').click()
+    const plain = await stageShot(app)
+    await openTool(app, 'debug')
+    for (const flag of ['bones', 'slots', 'meshTriangles', 'boundingBoxes']) {
+      await app.getByTestId(`debug-${flag}`).click()
+      await expect(app.getByTestId(`debug-${flag}`)).toHaveAttribute('aria-checked', 'true')
+    }
+    const overlaid = await stageShot(app)
+    expect(overlaid.equals(plain)).toBe(false)
+    await app.getByTestId('debug-all-off').click()
+    await expect(app.getByTestId('debug-bones')).toHaveAttribute('aria-checked', 'false')
+  })
+})

@@ -1,0 +1,51 @@
+{
+  "name": "spine-asset-inspector",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Offline Spine skeletal animation asset inspection workbench: preview, mix tuning, skin composing, slot inspection, event debugging and export.",
+  "author": "zzoraemon043",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint:comments": "node scripts/run-rule.mjs comments",
+    "lint:emoji": "node scripts/run-rule.mjs emoji",
+    "lint:rules": "node scripts/run-rule.mjs all",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "verify": "npm run typecheck && npm run lint:rules && npm run test && npm run build && npm run test:e2e"
+  },
+  "dependencies": {
+    "@esotericsoftware/spine-core": "^4.2.120",
+    "@esotericsoftware/spine-webgl": "^4.2.120",
+    "fflate": "^0.8.3",
+    "lucide-react": "^1.58.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "@vitest/coverage-v8": "^5.0.5",
+    "jsdom": "^29.1.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
+  }
+}

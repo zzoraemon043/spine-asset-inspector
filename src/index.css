@@ -1,0 +1,113 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-ink-950: #07090d;
+  --color-ink-900: #0b0e14;
+  --color-ink-850: #0f131a;
+  --color-ink-800: #131821;
+  --color-ink-750: #171d28;
+  --color-ink-700: #1d2431;
+  --color-ink-600: #283142;
+  --color-ink-500: #3a4558;
+  --color-ink-400: #5b667a;
+  --color-ink-300: #8a94a7;
+  --color-ink-200: #b7bfcd;
+  --color-ink-100: #dde3ec;
+  --color-accent-500: #22d3ee;
+  --color-accent-400: #67e8f9;
+  --color-accent-900: #0b3640;
+  --color-signal-amber: #f59e0b;
+  --color-signal-green: #10b981;
+  --color-signal-red: #f43f5e;
+  --color-signal-violet: #a78bfa;
+  --font-sans: 'Inter', 'Segoe UI', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', Menlo, Consolas, 'Noto Sans Mono CJK TC', monospace;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-ink-950);
+    color: var(--color-ink-200);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-900);
+    color: var(--color-accent-400);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-ink-600) transparent;
+  }
+}
+
+@layer components {
+  .stage-checker {
+    background-color: #161b24;
+    background-image:
+      linear-gradient(45deg, #1d2430 25%, transparent 25%),
+      linear-gradient(-45deg, #1d2430 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #1d2430 75%),
+      linear-gradient(-45deg, transparent 75%, #1d2430 75%);
+    background-size: 24px 24px;
+    background-position:
+      0 0,
+      0 12px,
+      12px -12px,
+      -12px 0;
+  }
+
+  .stage-dark {
+    background-color: #0b0e14;
+  }
+
+  .stage-light {
+    background-color: #d6dbe3;
+  }
+
+  .stage-chroma {
+    background-color: #00b140;
+  }
+
+  .range-input {
+    appearance: none;
+    height: 4px;
+    border-radius: 9999px;
+    background: var(--color-ink-600);
+    outline: none;
+    cursor: pointer;
+  }
+
+  .range-input::-webkit-slider-thumb {
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    background: var(--color-accent-500);
+    border: 1px solid var(--color-ink-950);
+  }
+
+  .range-input::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    background: var(--color-accent-500);
+    border: 1px solid var(--color-ink-950);
+  }
+
+  .range-input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}

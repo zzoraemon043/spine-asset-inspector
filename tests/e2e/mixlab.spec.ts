@@ -1,0 +1,47 @@
+import { test, expect, openTool } from './fixtures'
+
+test.describe('animation mix lab', () => {
+  test('runs a slow A to B transition and reports mix progress', async ({ app }) => {
+    await openTool(app, 'mix')
+    await app.getByTestId('transition-from').selectOption('idle')
+    await app.getByTestId('transition-to').selectOption('run')
+    await app.getByTestId('transition-duration').fill('2')
+    await expect(app.getByTestId('transition-duration-value')).toHaveText('2.00s')
+    await app.getByTestId('transition-hold').fill('0.2')
+    await app.getByTestId('run-transition').click()
+    await expect(app.getByTestId('hud-mixing')).toContainText('過渡中 idle 到 run')
+    await expect(app.getByTestId('animation-item-run')).toHaveAttribute('aria-selected', 'true')
+    const value = Number.parseInt((await app.getByTestId('mix-progress-value').textContent()) ?? '0', 10)
+    expect(value).toBeGreaterThanOrEqual(0)
+    expect(value).toBeLessThan(100)
+    await expect(app.getByTestId('hud-mixing')).toBeHidden({ timeout: 8000 })
+    await app.getByTestId('run-transition-reverse').click()
+    await expect(app.getByTestId('animation-item-idle')).toHaveAttribute('aria-selected', 'true', { timeout: 5000 })
+  })
+
+  test('stores mix pairs and default mix', async ({ app }) => {
+    await openTool(app, 'mix')
+    await app.getByTestId('default-mix').fill('0.35')
+    await expect(app.getByTestId('default-mix-value')).toHaveText('0.35s')
+    await app.getByTestId('transition-to').selectOption('attack')
+    await app.getByTestId('save-mix-pair').click()
+    await expect(app.getByTestId('mix-pair-row')).toHaveCount(1)
+    await expect(app.getByTestId('mix-pair-row')).toContainText('attack')
+  })
+
+  test('layers track 1 over track 0', async ({ app }) => {
+    await app.getByTestId('animation-item-run').click()
+    await openTool(app, 'mix')
+    await app.getByTestId('add-layer').click()
+    await expect(app.getByTestId('layer-1-animation')).toHaveValue('shoot')
+    await expect(app.getByTestId('layer-1-runtime')).toContainText('shoot')
+    await expect(app.getByTestId('stage-hud')).toContainText('軌道 1：shoot')
+    await app.getByTestId('layer-1-alpha').fill('0.4')
+    await expect(app.getByTestId('layer-1-alpha-value')).toHaveText('0.40')
+    await app.getByTestId('layer-1-blend-add').click()
+    await app.getByTestId('layer-1-enabled').click()
+    await expect(app.getByTestId('layer-1-enabled')).toHaveText('已靜音')
+    await app.getByTestId('layer-1-remove').click()
+    await expect(app.getByTestId('layer-1')).toHaveCount(0)
+  })
+})
