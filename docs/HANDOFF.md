@@ -27,7 +27,7 @@
 | D9 | 狀態分為 `inspectorStore`（UI 狀態）與 `liveStore`（每影格資料） | 避免每影格重繪整個介面 |
 | D10 | 控制器透過 `ControllerEnvironment` 注入瀏覽器相依 | 控制器、store 與核心可在 Node 中完整測試 |
 | D11 | 無註解規則以 TypeScript 掃描器實作，零 Emoji 以 Unicode 屬性實作 | 避免字串、正規表示式與 JSX 文字誤判 |
-| D12 | 提交者身分固定為 `zzoraemon043 <195147269+zzoraemon043@users.noreply.github.com>`，提交訊息不含 Co-Authored-By 與 Claude-Session | 依專案規範；已以 repo 層級 `git config` 設定 |
+| D12 | 提交者身分固定為 `zzoraemon043 <195147269+zzoraemon043@users.noreply.github.com>`，提交訊息不加額外署名 | 依專案規範；已以 repo 層級 `git config` 設定 |
 | D13 | 圖集拆解以 WebGL 讀回原始像素並以內建 PNG 編碼器輸出，不經 2D Canvas | 2D Canvas 會預乘 Alpha，半透明像素無法無損還原 |
 | D14 | Region 熱替換建立獨立 TextureAtlasRegion 並改指引用它的部件，不修改共用圖集頁面 | 可精準還原，並可在匯出用的離屏環境重複套用 |
 | D15 | 效能基準採中階手機、60 FPS、單一角色同屏，集中於 `src/core/audit/budgets.ts` | 需求未提供具體數值；集中定義方便專案調整 |
