@@ -2,7 +2,7 @@
 
 `MIT` `Vite 8` `React 19` `TypeScript 5.9` `Tailwind CSS 4` `Zustand 5` `spine-webgl 4.2` `100% Offline` `Strict CSP`
 
-[English](#english) | [繁體中文](#繁體中文)
+[Live demo / 線上試用](https://zzoraemon043.github.io/spine-asset-inspector/) | [English](#english) | [繁體中文](#繁體中文)
 
 ---
 
