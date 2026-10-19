@@ -4,6 +4,8 @@
 
 [Live demo / 線上試用](https://zzoraemon043.github.io/spine-asset-inspector/) | [English](#english) | [繁體中文](#繁體中文)
 
+![Spine Asset Inspector with bone and mesh overlays on the built-in demo skeleton](docs/images/overview.webp)
+
 ---
 
 ## English
@@ -26,6 +28,10 @@ A front-end only, fully offline inspection and editing workbench for Spine skele
 12. [License](#license)
 
 ### Features
+
+| Animation mode with dopesheet | Export dialog with live preview |
+| --- | --- |
+| ![Dopesheet](docs/images/dopesheet.webp) | ![Export](docs/images/export.webp) |
 
 | Module | Components | Capabilities |
 | --- | --- | --- |
@@ -318,6 +324,10 @@ Spine Runtimes are distributed under the [Esoteric Software Spine Runtimes Licen
 ---
 
 ### 功能總覽
+
+| 動畫模式與律動表 | 匯出視窗與即時預覽 |
+| --- | --- |
+| ![律動表](docs/images/dopesheet.webp) | ![匯出](docs/images/export.webp) |
 
 | 模組 | 對應元件 | 能力 |
 | --- | --- | --- |
