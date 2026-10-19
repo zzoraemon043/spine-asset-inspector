@@ -292,7 +292,7 @@ E2E uses the Chromium in `/opt/pw-browsers` by default; set `PW_CHROMIUM_PATH` f
 
 MIT License, Copyright (c) 2026 zzoraemon043. See [LICENSE](LICENSE).
 
-Spine Runtimes are distributed under the Esoteric Software Spine Runtimes License; using them in a product requires a valid Spine editor license. This project only references the official runtimes through npm and contains no Esoteric Software sample art; the 3.6 binary upgrader is implemented from the publicly documented 3.6 file format. The repository contains no third-party character assets; keep real assets local when testing and do not commit them.
+Spine Runtimes are distributed under the [Esoteric Software Spine Runtimes License](https://esotericsoftware.com/spine-runtimes-license); using them in a product requires a valid Spine editor license. This project only references the official runtimes through npm and contains no Esoteric Software sample art; the 3.6 binary upgrader is implemented from the publicly documented 3.6 file format. The repository contains no third-party character assets; keep real assets local when testing and do not commit them.
 
 ---
 
@@ -717,4 +717,4 @@ E2E 預設使用 `/opt/pw-browsers` 內的 Chromium，可用 `PW_CHROMIUM_PATH` 
 
 MIT License，Copyright (c) 2026 zzoraemon043。詳見 [LICENSE](LICENSE)。
 
-Spine Runtimes 依 Esoteric Software 的 Spine Runtimes License 散布；在產品中使用 Spine Runtimes 需持有有效的 Spine 編輯器授權。本專案僅透過 npm 相依引用官方執行環境，不包含任何 Esoteric Software 的範例美術資產；3.6 二進位升級器依官方公開的 3.6 檔案格式實作。儲存庫不包含任何第三方角色資產；以真實資產驗收時請放在本機，不要提交。
+Spine Runtimes 依 Esoteric Software 的 [Spine Runtimes License](https://esotericsoftware.com/spine-runtimes-license) 散布；在產品中使用 Spine Runtimes 需持有有效的 Spine 編輯器授權。本專案僅透過 npm 相依引用官方執行環境，不包含任何 Esoteric Software 的範例美術資產；3.6 二進位升級器依官方公開的 3.6 檔案格式實作。儲存庫不包含任何第三方角色資產；以真實資產驗收時請放在本機，不要提交。
