@@ -8,6 +8,23 @@ function isEditable(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable
 }
 
+function isPressable(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  return target.closest('button, a[href], summary, [role="button"], [role="checkbox"], [role="switch"], [role="tab"], [role="menuitem"]') !== null
+}
+
+function isSaveShortcut(event: KeyboardEvent): boolean {
+  return (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 's'
+}
+
+function saveFromEditable(controller: InspectorController<ImageBitmap>, event: KeyboardEvent): void {
+  const state = useInspectorStore.getState()
+  if (!isSaveShortcut(event) || !state.editor.enabled || state.exportOpen) return
+  if (event.target instanceof HTMLElement) event.target.blur()
+  controller.editor.saveJson()
+  event.preventDefault()
+}
+
 export const SHORTCUTS: ReadonlyArray<readonly [string, string]> = [
   ['Space', '播放 / 暫停'],
   ['Left / Right', '單影格後退 / 前進'],
@@ -54,7 +71,11 @@ export function useKeyboardShortcuts(controller: InspectorController<ImageBitmap
         event.preventDefault()
         return
       }
-      if (event.defaultPrevented || isEditable(event.target)) return
+      if (event.defaultPrevented) return
+      if (isEditable(event.target)) {
+        saveFromEditable(controller, event)
+        return
+      }
       const state = useInspectorStore.getState()
       if (state.exportOpen) return
       if (handleEditShortcut(controller, event)) {
@@ -69,6 +90,7 @@ export function useKeyboardShortcuts(controller: InspectorController<ImageBitmap
       }
       switch (event.key) {
         case ' ':
+          if (isPressable(event.target)) return
           controller.togglePlay()
           break
         case 'ArrowRight':

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, createEvent, fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { ControllerProvider } from '../../src/controller/ControllerContext'
 import type { InspectorController } from '../../src/controller/InspectorController'
@@ -130,6 +130,42 @@ describe('editing interface', () => {
     expect(state().editor.index).toBe(1)
     fireEvent.click(screen.getByTestId('history-undo'))
     expect(state().editor.index).toBe(0)
+  })
+
+  it('saves with Ctrl+S while an edit field has focus and keeps the typed value', () => {
+    act(() => harness.controller.select({ kind: 'bone', name: 'head' }))
+    mount(
+      <>
+        <PropertiesPanel />
+        <Hooks />
+      </>,
+    )
+    const input = screen.getByTestId('edit-bone-rotation')
+    input.focus()
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: '45' } })
+    const event = createEvent.keyDown(input, { key: 's', ctrlKey: true })
+    fireEvent(input, event)
+    expect(event.defaultPrevented).toBe(true)
+    expect(harness.saved).toHaveLength(1)
+    expect(harness.controller.instance!.data.findBone('head')!.rotation).toBe(45)
+  })
+
+  it('lets Space press a focused button instead of toggling playback', () => {
+    mount(
+      <>
+        <TopBar />
+        <Hooks />
+      </>,
+    )
+    const playing = state().playing
+    const button = screen.getByTestId('topbar-save-json')
+    const event = createEvent.keyDown(button, { key: ' ' })
+    fireEvent(button, event)
+    expect(event.defaultPrevented).toBe(false)
+    expect(state().playing).toBe(playing)
+    fireEvent.keyDown(document.body, { key: ' ' })
+    expect(state().playing).toBe(!playing)
   })
 
   it('wires the top bar buttons and keyboard shortcuts', () => {
