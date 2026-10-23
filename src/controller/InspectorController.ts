@@ -37,6 +37,7 @@ import { AnimateFeature } from './features/animateFeature'
 import { MeshFeature } from './features/meshFeature'
 import { ExportPreviewFeature } from './features/exportPreviewFeature'
 import { sanitizeCrop } from '@/core/export/previewDrag'
+import { readFiles } from '@/core/assets/browserFiles'
 import type { DeleteTarget } from '@/core/editor/deleteCommands'
 import { applySetup } from '@/core/gizmo/runtimePose'
 import type { SetupPatch } from '@/core/gizmo/types'
@@ -318,6 +319,15 @@ export class InspectorController<TImage> {
 
   async loadDemo(): Promise<boolean> {
     return this.load(() => this.env.createDemoSource(), null)
+  }
+
+  async readInput(files: readonly File[]): Promise<VirtualFile[] | null> {
+    try {
+      return await readFiles(files)
+    } catch (error) {
+      pushNotice('error', describeError(error))
+      return null
+    }
   }
 
   async loadFiles(files: readonly VirtualFile[], preferredSkeleton?: string): Promise<boolean> {

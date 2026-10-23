@@ -3,7 +3,6 @@ import { AudioLines, Play, Square, Trash, Upload, Volume2, Wand2 } from 'lucide-
 import { useController } from '@/controller/ControllerContext'
 import { useInspectorStore } from '@/store/inspectorStore'
 import { useLiveStore } from '@/store/liveStore'
-import { readFiles } from '@/core/assets/browserFiles'
 import { alignEvents, type AlignmentStatus } from '@/core/audio/alignment'
 import { timeToRatio } from '@/core/playback/timeMath'
 import { Panel, EmptyState } from '../ui/Panel'
@@ -44,7 +43,8 @@ function ClipsSection() {
         onChange={async (event) => {
           const files = event.target.files ? Array.from(event.target.files) : []
           event.target.value = ''
-          if (files.length > 0) await controller.audio.loadFiles(await readFiles(files))
+          const virtual = files.length > 0 ? await controller.readInput(files) : null
+          if (virtual) await controller.audio.loadFiles(virtual)
         }}
       />
       {clips.length === 0 ? (

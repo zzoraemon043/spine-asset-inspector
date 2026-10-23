@@ -2,7 +2,6 @@ import { useRef } from 'react'
 import { Bone, Box, Download, FileJson, FolderInput, FolderOpen, Redo2, ShieldCheck, Undo2, Wrench } from 'lucide-react'
 import { useController } from '@/controller/ControllerContext'
 import { useInspectorStore } from '@/store/inspectorStore'
-import { readFiles } from '@/core/assets/browserFiles'
 import { Badge } from '../ui/Badge'
 import { Button, IconButton } from '../ui/Button'
 
@@ -19,8 +18,8 @@ export function TopBar() {
 
   const handleFiles = async (list: FileList | null) => {
     if (!list || list.length === 0) return
-    const files = await readFiles(Array.from(list))
-    await controller.loadFiles(files)
+    const files = await controller.readInput(Array.from(list))
+    if (files) await controller.loadFiles(files)
   }
 
   return (

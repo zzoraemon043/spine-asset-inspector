@@ -52,6 +52,12 @@ describe('InspectorController loading', () => {
     expect(state().notices.at(-1)?.level).toBe('error')
   })
 
+  it('shows a notice when the picked files are over the size limit', async () => {
+    const huge = { name: 'huge.skel', size: 600 * 1024 * 1024, arrayBuffer: async () => new ArrayBuffer(0) } as unknown as File
+    expect(await harness.controller.readInput([huge])).toBeNull()
+    expect(state().notices.at(-1)).toMatchObject({ level: 'error', text: '輸入檔案總容量超過 512 MB 上限' })
+  })
+
   it('enters the error state when nothing is loaded', async () => {
     const fresh = createHarness({ createDemoSource: async () => ({ ...demoSource(), atlasText: 'broken' }) })
     expect(await fresh.controller.loadDemo()).toBe(false)

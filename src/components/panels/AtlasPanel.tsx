@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import { Archive, Download, ImageUp, RotateCcw, Search } from 'lucide-react'
 import { useController } from '@/controller/ControllerContext'
 import { useInspectorStore } from '@/store/inspectorStore'
-import { readFiles } from '@/core/assets/browserFiles'
 import { isTrimmed, packedSize, type AtlasRegionInfo } from '@/core/atlas/atlasModel'
 import { Panel, EmptyState } from '../ui/Panel'
 import { Badge } from '../ui/Badge'
@@ -46,8 +45,8 @@ function RegionRow({ region, selected, replaced }: { region: AtlasRegionInfo; se
   const replaceWith = async (list: FileList | File[] | null) => {
     const file = list ? Array.from(list)[0] : undefined
     if (!file) return
-    const [virtual] = await readFiles([file])
-    await controller.atlas.replaceRegionImage(region.id, virtual)
+    const virtual = (await controller.readInput([file]))?.[0]
+    if (virtual) await controller.atlas.replaceRegionImage(region.id, virtual)
   }
   const onDrop = (event: DragEvent<HTMLLIElement>) => {
     event.preventDefault()
