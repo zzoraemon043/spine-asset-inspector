@@ -35,7 +35,7 @@ export function ViewportToolbar() {
   const modeIcon: Record<GizmoMode, typeof Move> = { translate: Move, rotate: RotateCw, scale: Scaling }
   const modeKey: Record<GizmoMode, string> = { translate: 'W', rotate: 'E', scale: 'R' }
   return (
-    <div className="absolute left-3 top-3 flex items-center gap-1 rounded border border-ink-700 bg-ink-900/90 p-1 shadow-lg backdrop-blur" data-testid="viewport-toolbar">
+    <div className="absolute left-3 top-3 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-1 rounded border border-ink-700 bg-ink-900/90 p-1 shadow-lg backdrop-blur" data-testid="viewport-toolbar">
       <Button
         size="xs"
         variant={setupMode ? 'active' : 'default'}

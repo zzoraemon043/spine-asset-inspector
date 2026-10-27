@@ -23,17 +23,17 @@ export function TopBar() {
   }
 
   return (
-    <header className="col-span-2 flex items-center gap-3 border-b border-ink-700 bg-ink-900 px-3">
+    <header className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 xl:gap-x-3 border-b border-ink-700 bg-ink-900 px-3 py-1.5 lg:col-span-2 lg:flex-nowrap lg:py-0" data-testid="top-bar">
       <div className="flex items-center gap-2.5">
         <div className="flex h-8 w-8 items-center justify-center rounded border border-accent-500/50 bg-accent-500/10 text-accent-400">
           <Bone size={16} strokeWidth={2} />
         </div>
         <div className="flex flex-col leading-tight">
           <span className="text-sm font-bold tracking-wide text-ink-100">Spine 動畫檢視器</span>
-          <span className="text-[10px] text-ink-400">離線檢視、檢查與匯出骨骼動畫</span>
+          <span className="hidden text-[10px] text-ink-400 xl:inline">離線檢視、檢查與匯出骨骼動畫</span>
         </div>
       </div>
-      <div className="mx-1 h-7 w-px bg-ink-700" />
+      <div className="mx-1 hidden h-7 w-px bg-ink-700 lg:block" />
       <div className="flex items-center gap-1.5">
         <input
           ref={fileInput}
@@ -69,8 +69,8 @@ export function TopBar() {
           示範角色
         </Button>
       </div>
-      <div className="mx-1 h-7 w-px bg-ink-700" />
-      <div className="flex min-w-0 items-center gap-1.5" data-testid="asset-badges">
+      <div className="mx-1 hidden h-7 w-px bg-ink-700 lg:block" />
+      <div className="flex min-w-0 items-center gap-1.5 overflow-hidden" data-testid="asset-badges">
         {asset ? (
           <>
             <span className="truncate text-sm text-ink-100" data-testid="asset-name">
@@ -91,7 +91,7 @@ export function TopBar() {
           <Badge tone={status === 'error' ? 'red' : 'neutral'}>{status === 'loading' ? '讀取中' : '尚未載入'}</Badge>
         )}
       </div>
-      <div className="ml-auto flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5 lg:ml-auto lg:flex-nowrap">
         {asset && editor.enabled && (
           <div className="flex items-center gap-1" data-testid="edit-toolbar">
             {editor.dirty && (
@@ -104,7 +104,7 @@ export function TopBar() {
             <Button size="md" icon={<FileJson size={14} />} onClick={() => controller.editor.saveJson()} testId="topbar-save-json" title="儲存為 Spine 4.2 JSON（Ctrl+S）">
               儲存 JSON
             </Button>
-            <div className="mx-1 h-7 w-px bg-ink-700" />
+            <div className="mx-1 hidden h-7 w-px bg-ink-700 lg:block" />
           </div>
         )}
         <Button size="md" variant="primary" icon={<Download size={14} />} disabled={!asset} onClick={() => controller.setExportOpen(true)} testId="export-open">
@@ -113,11 +113,13 @@ export function TopBar() {
         <Button size="md" variant={advancedOpen ? 'active' : 'default'} icon={<Wrench size={14} />} disabled={!asset} onClick={() => controller.setAdvancedOpen(!advancedOpen)} testId="advanced-toggle" aria-pressed={advancedOpen}>
           進階工具
         </Button>
-        <div className="mx-1 h-7 w-px bg-ink-700" />
-        <Badge tone="green" title="所有解析與渲染都在本機瀏覽器內完成，不會上傳任何檔案">
-          <ShieldCheck size={10} className="mr-1" />
-          離線運作
-        </Badge>
+        <div className="mx-1 hidden h-7 w-px bg-ink-700 lg:block" />
+        <span className="hidden xl:inline-flex">
+          <Badge tone="green" title="所有解析與渲染都在本機瀏覽器內完成，不會上傳任何檔案">
+            <ShieldCheck size={10} className="mr-1" />
+            離線運作
+          </Badge>
+        </span>
       </div>
     </header>
   )

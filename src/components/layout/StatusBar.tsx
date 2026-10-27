@@ -13,7 +13,7 @@ export function StatusBar() {
   const pointer = useLiveStore((state) => state.pointer)
   const dot = status === 'ready' ? 'bg-signal-green' : status === 'loading' ? 'bg-signal-amber' : status === 'error' ? 'bg-signal-red' : 'bg-ink-500'
   return (
-    <footer className="col-span-2 flex items-center gap-4 border-t border-ink-700 bg-ink-900 px-3 text-[11px] text-ink-400" data-testid="status-bar">
+    <footer className="flex min-w-0 items-center gap-4 overflow-hidden lg:col-span-2 border-t border-ink-700 bg-ink-900 px-3 text-[11px] text-ink-400" data-testid="status-bar">
       <span className="flex items-center gap-1.5">
         <span className={cx('h-1.5 w-1.5 rounded-full', dot)} />
         <span data-testid="load-status" data-status={status}>

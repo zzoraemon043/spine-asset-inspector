@@ -19,9 +19,9 @@ export function Workbench() {
   useUnsavedGuard()
   const animateMode = useInspectorStore((state) => state.animateMode)
   return (
-    <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_340px] grid-rows-[48px_minmax(0,1fr)_24px] bg-ink-950" data-testid="workbench">
+    <div className="grid h-full min-h-0 grid-cols-1 grid-rows-[auto_minmax(0,1fr)_minmax(0,40%)_24px] bg-ink-950 lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-[48px_minmax(0,1fr)_24px]" data-testid="workbench">
       <TopBar />
-      <main className="flex min-h-0 min-w-0 flex-col border-r border-ink-700 bg-ink-900">
+      <main className="flex min-h-0 min-w-0 flex-col border-b border-ink-700 bg-ink-900 lg:border-b-0 lg:border-r">
         <div className="flex min-h-0 flex-1">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <StageView />
@@ -31,7 +31,7 @@ export function Workbench() {
         {animateMode && <Dopesheet />}
         <PlaybackBar />
       </main>
-      <aside className="flex min-h-0 flex-col overflow-hidden bg-ink-900" data-testid="side-panel">
+      <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-ink-900" data-testid="side-panel">
         <HierarchyPanel />
         <PropertiesPanel />
       </aside>

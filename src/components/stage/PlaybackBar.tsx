@@ -23,7 +23,7 @@ export function PlaybackBar() {
 
   return (
     <div className="shrink-0 border-t border-ink-700 bg-ink-850" data-testid="playback-bar">
-      <div className="flex h-11 items-center gap-2 px-3">
+      <div className="flex min-h-11 flex-wrap items-center gap-2 px-3 py-1 lg:h-11 lg:flex-nowrap lg:py-0">
         <div className="w-44">
           <Select label="目前動畫" value={animation} options={(animations ?? []).map((item) => ({ value: item.name, label: item.name }))} onChange={(value) => value && controller.selectAnimation(value)} testId="animation-picker" />
         </div>
