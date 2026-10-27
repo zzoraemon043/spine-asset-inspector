@@ -226,7 +226,7 @@ export async function exportWebm(context: ExportContext, options: SequenceOption
     const times = Array.from({ length: Math.max(1, options.loops) }, () => plan.times).flat()
     const even = { ...plan.size, width: plan.size.width + (plan.size.width % 2), height: plan.size.height + (plan.size.height % 2) }
     renderer.resize(even)
-    const session = startWebmSession(renderer.canvas, Math.min(16_000_000, even.width * even.height * options.fps * 0.25))
+    const session = await startWebmSession(renderer.canvas, Math.min(16_000_000, even.width * even.height * options.fps * 0.25))
     const interval = 1000 / options.fps
     const started = performance.now()
     for (let index = 0; index < times.length; index++) {

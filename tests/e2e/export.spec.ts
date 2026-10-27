@@ -87,6 +87,9 @@ test.describe('export dialog', () => {
     const bytes = new Uint8Array(readFileSync(await download.path()))
     expect([...bytes.subarray(0, 4)]).toEqual([0x1a, 0x45, 0xdf, 0xa3])
     expect(bytes.length).toBeGreaterThan(500)
+    const simpleBlocks = bytes.reduce((count, byte, index) => count + (byte === 0xa3 && index > 0 && bytes[index - 1] !== 0 ? 1 : 0), 0)
+    expect(Buffer.from(bytes).includes(Buffer.from([0x1f, 0x43, 0xb6, 0x75]))).toBe(true)
+    expect(simpleBlocks).toBeGreaterThan(5)
   })
 
   test('opens the dialog for a specific animation from the properties panel', async ({ app }) => {
