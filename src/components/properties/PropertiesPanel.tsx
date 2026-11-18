@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Copy, Download, Eye, EyeOff, FileJson, Package, Play, RotateCcw, Trash2, TriangleAlert } from 'lucide-react'
 import { useController } from '@/controller/ControllerContext'
 import { useInspectorStore } from '@/store/inspectorStore'
@@ -69,6 +70,16 @@ function SkeletonProps({ asset }: { asset: AssetSummary }) {
   const controller = useController()
   const { stats } = asset
   const editor = useEditor()
+  const loading = useInspectorStore((state) => state.status === 'loading')
+  const [pendingSkeleton, setPendingSkeleton] = useState<string | null>(null)
+  const requestSwitch = (path: string) => {
+    if (editor.dirty) setPendingSkeleton(path)
+    else void controller.switchSkeleton(path)
+  }
+  const confirmSwitch = (decision: 'save' | 'discard') => {
+    if (pendingSkeleton) void controller.switchSkeleton(pendingSkeleton, decision)
+    setPendingSkeleton(null)
+  }
   return (
     <>
       <Section title="編輯">
@@ -105,8 +116,24 @@ function SkeletonProps({ asset }: { asset: AssetSummary }) {
         )}
         {asset.skeletonCandidates.length > 1 && (
           <div className="mt-1">
-            <Select label="骨架檔" testId="skeleton-select" value={asset.fileName} options={asset.skeletonCandidates.map((path) => ({ value: path, label: path }))} onChange={(path) => void controller.switchSkeleton(path)} />
+            <Select label="骨架檔" testId="skeleton-select" value={asset.fileName} options={asset.skeletonCandidates.map((path) => ({ value: path, label: path }))} onChange={requestSwitch} disabled={loading} />
           </div>
+        )}
+        {pendingSkeleton && (
+          <dialog
+            ref={(dialog) => { if (dialog && !dialog.open) dialog.showModal() }}
+            aria-label="切換骨架"
+            onCancel={() => setPendingSkeleton(null)}
+            className="m-auto max-w-sm rounded-lg border border-ink-600 bg-ink-900 p-4 text-ink-100 shadow-2xl backdrop:bg-ink-950/70"
+          >
+            <h2 className="text-base font-semibold">切換骨架</h2>
+            <p className="mt-2 break-all text-xs text-ink-300">目前骨架有未儲存的變更。切換至 {pendingSkeleton} 前要先儲存嗎？</p>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button autoFocus onClick={() => setPendingSkeleton(null)}>取消</Button>
+              <Button variant="danger" onClick={() => confirmSwitch('discard')}>捨棄變更</Button>
+              <Button variant="primary" onClick={() => confirmSwitch('save')}>儲存 JSON 後切換</Button>
+            </div>
+          </dialog>
         )}
       </Section>
       <Section title="統計">

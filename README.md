@@ -57,7 +57,7 @@ A front-end only, fully offline inspection and editing workbench for Spine skele
 
 ### Quick Start
 
-Requires Node.js 20 or later.
+Requires Node.js 22.13.0 or later on the 22.x line, Node.js 24.x, or Node.js 26 and later. This range covers Vite, Vitest, and jsdom for both Quick Start and the test and verification commands.
 
 ```bash
 npm ci
@@ -355,7 +355,7 @@ Spine Runtimes are distributed under the [Esoteric Software Spine Runtimes Licen
 
 ### 快速開始
 
-需求：Node.js 20 以上。
+需求為 Node.js 22.13.0 起的 22.x、24.x，或 26 以上。此範圍涵蓋快速開始、測試與完整驗證所用的 Vite、Vitest 和 jsdom。
 
 ```bash
 npm ci

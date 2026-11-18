@@ -10,6 +10,19 @@ const slash = '/'
 const lineComment = `${slash}${slash} note`
 const blockComment = `${slash}* note *${slash}`
 
+describe('toolchain requirements', () => {
+  it('declares the supported Node.js versions for the locked development and test tooling', () => {
+    const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
+    const lock = JSON.parse(readFileSync(join(root, 'package-lock.json'), 'utf8'))
+    const readme = readFileSync(join(root, 'README.md'), 'utf8')
+    expect(pkg.engines.node).toBe('^22.13.0 || ^24.0.0 || >=26.0.0')
+    expect(lock.packages[''].engines.node).toBe(pkg.engines.node)
+    expect(readme.match(/22\.13\.0/g)).toHaveLength(2)
+    expect(readme).not.toContain('Requires Node.js 20 or later.')
+    expect(readme).not.toContain('Node.js 20 以上')
+  })
+})
+
 describe('no-comment rule', () => {
   it('detects line, block and doc comments in scripts', () => {
     expect(findScriptComments(`const a = 1 ${lineComment}\n`, '.ts')).toHaveLength(1)

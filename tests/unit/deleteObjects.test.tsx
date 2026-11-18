@@ -127,6 +127,23 @@ describe('delete commands', () => {
     expect(() => deleteObject(fixture(), { kind: 'animation', name: 'nope' })).toThrow('找不到動畫：nope')
   })
 
+  it.each([
+    { kind: 'constraint', group: 'path', name: 'trail' },
+    { kind: 'slot', name: 'helmet' },
+    { kind: 'bone', name: 'helmet-bone' },
+  ] as const)('preserves global constraint order after deleting a $kind', (target) => {
+    const document = fixture()
+    document.bones.push({ name: 'helmet-bone', parent: 'root' })
+    document.slots.find((slot: { name: string }) => slot.name === 'helmet').bone = 'helmet-bone'
+    document.path = [{ name: 'trail', order: 0, bones: ['cape'], target: 'helmet' }]
+    document.ik[0].order = 3
+    document.transform[0].order = 2
+    document.physics = [{ name: 'sway', order: 1, bone: 'cape-tip' }]
+    const { result } = run(document, target)
+    expect(result.path).toEqual([])
+    expect([result.physics[0].order, result.transform[0].order, result.ik[0].order]).toEqual([0, 1, 2])
+  })
+
   it('deletes path and physics constraints that use removed slots and bones', () => {
     const document = fixture()
     document.path = [{ name: 'trail', bones: ['cape'], target: 'helmet' }]

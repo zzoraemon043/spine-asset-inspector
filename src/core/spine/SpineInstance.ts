@@ -257,6 +257,11 @@ export class SpineInstance {
 
   clearPoseOverrides(): void {
     if (this.poseOverrides.size === 0) return
+    for (const [name, values] of this.poseOverrides) {
+      const bone = this.skeleton.findBone(name)
+      if (!bone) continue
+      for (const field of Object.keys(values) as PoseField[]) bone[field] = bone.data[field]
+    }
     this.poseOverrides.clear()
     this.refresh()
   }

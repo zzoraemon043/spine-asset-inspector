@@ -36,7 +36,7 @@ export class AnimateFeature<TImage> {
 
   reset(): void {
     this.pending.clear()
-    patchState({ pendingPose: [], keySelection: [] })
+    patchState({ pendingPose: [], keySelection: [], editingFrame: null })
   }
 
   get clipboardSize(): number {
@@ -55,7 +55,8 @@ export class AnimateFeature<TImage> {
   frameTime(): number {
     const instance = this.instance()
     if (!instance) return 0
-    return instance.snapshot().frame / instance.fps
+    const frame = useInspectorStore.getState().editingFrame ?? instance.snapshot().frame
+    return frame / instance.fps
   }
 
   private setupValues(bone: string): SetupValues | null {

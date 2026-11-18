@@ -29,6 +29,10 @@ function nameOf(item: JsonObject): string {
   return typeof item.name === 'string' ? item.name : ''
 }
 
+function orderOf(item: JsonObject): number {
+  return typeof item.order === 'number' ? item.order : 0
+}
+
 function objectAt(parent: JsonObject, key: string): JsonObject | null {
   const value = parent[key]
   return isObject(value) ? value : null
@@ -316,6 +320,12 @@ function apply(doc: JsonObject, target: DeleteTarget): string {
 export function deleteObject(document: SkeletonDocument, target: DeleteTarget): EditCommand {
   const doc = cloneJson(document as JsonValue) as JsonObject
   const label = apply(doc, target)
+  const constraints = CONSTRAINT_GROUPS.flatMap((group) => list(doc, group))
+  if (constraints.length < CONSTRAINT_GROUPS.flatMap((group) => list(document, group)).length) {
+    constraints.sort((a, b) => orderOf(a) - orderOf(b)).forEach((item, order) => {
+      if (orderOf(item) !== order) item.order = order
+    })
+  }
   const ops: PatchOp[] = []
   for (const key of TOP_LEVEL) {
     const before = (document as JsonObject)[key]

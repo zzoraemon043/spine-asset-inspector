@@ -9,18 +9,17 @@ import {
   buildManifest,
   composeSheet,
   frameFileName,
-  measureSequence,
   parseBackground,
   sanitizeFileStem,
-  selectFrames,
-  sequenceTimes,
+  sequenceFrames,
+  SequenceSampler,
   sheetLayout,
   sheetManifest,
   type FrameSize,
   type OutputOptions,
 } from './exportPlan'
 import { OffscreenSpineRenderer, type ExportImage } from './OffscreenSpineRenderer'
-import { frameFor, previewGeometry, type FramePlacement, type Rect } from './placement'
+import { frameFor, previewGeometry, worldToFrame, type FramePlacement, type Rect } from './placement'
 import { startWebmSession } from './webm'
 
 export interface ExportContext {
@@ -108,6 +107,7 @@ export async function exportScreenshot(context: ExportContext, pose: Skeleton, o
 
 interface PlannedSequence {
   readonly prepared: Prepared
+  readonly sampler: SequenceSampler
   readonly duration: number
   readonly times: number[]
   readonly first: number
@@ -124,12 +124,13 @@ function planSequence(context: ExportContext, options: SequenceOptions): Planned
     const { instance } = prepared
     if (!instance.hasAnimation(options.animation)) throw new Error(`找不到動作：${options.animation}`)
     const duration = instance.data.findAnimation(options.animation)?.duration ?? 0
-    const selection = selectFrames(sequenceTimes(duration, options.fps), options.startFrame, options.endFrame)
-    if (selection.times.length === 0) throw new Error('影格範圍內沒有可匯出的影格')
-    const { bounds, size, placement } = frameFor(measureSequence(instance, options.animation, selection.times, 0), options)
+    const selection = sequenceFrames(duration, options.fps, options.startFrame, options.endFrame)
+    const sampler = new SequenceSampler(instance, options.animation, options.fps)
+    const { bounds, size, placement } = frameFor(sampler.measure(selection.times, 0), options)
     prepared.renderer.resize(size)
     return {
       prepared,
+      sampler,
       duration,
       times: selection.times,
       first: selection.first,
@@ -149,7 +150,7 @@ async function renderFrames(plan: PlannedSequence, onFrame: (pixels: TexturePixe
   const { renderer, instance, premultipliedAlpha } = plan.prepared
   for (let index = 0; index < plan.times.length; index++) {
     if (token.cancelled) throw new ExportCancelledError()
-    instance.seek(plan.times[index])
+    plan.sampler.sample(plan.times[index])
     renderer.draw(instance.skeleton, premultipliedAlpha, plan.bounds, plan.size, plan.background, plan.placement)
     onFrame(renderer.readPixels(), index)
     onProgress((index + 1) / (plan.times.length + 1))
@@ -173,7 +174,8 @@ export async function exportPngSequence(context: ExportContext, options: Sequenc
       onProgress,
       token,
     )
-    const manifest = buildManifest({ skeleton: context.source.name, animation: options.animation, skins: context.skins, fps: options.fps, duration: plan.duration, bounds: plan.bounds, size: plan.size, frames })
+    const origin = worldToFrame({ x: 0, y: 0, width: 0, height: 0 }, plan.size, plan.placement)
+    const manifest = buildManifest({ skeleton: context.source.name, animation: options.animation, skins: context.skins, fps: options.fps, duration: plan.duration, origin, size: plan.size, frames })
     files['manifest.json'] = new TextEncoder().encode(`${JSON.stringify(manifest, null, 2)}\n`)
     const zip = zipSync(files, { level: 0 })
     onProgress(1)
@@ -234,7 +236,7 @@ export async function exportWebm(context: ExportContext, options: SequenceOption
         await session.finish()
         throw new ExportCancelledError()
       }
-      instance.seek(times[index])
+      plan.sampler.sample(times[index])
       renderer.draw(instance.skeleton, premultipliedAlpha, plan.bounds, even, plan.background, plan.placement)
       session.pushFrame()
       onProgress((index + 1) / (times.length + 1))
@@ -283,7 +285,7 @@ interface PreviewCache {
   readonly content: Bounds
   readonly times: number[]
   readonly first: number
-  readonly animation: string | null
+  readonly sampler: SequenceSampler | null
 }
 
 function isSequence(options: SequenceOptions | OutputOptions): options is SequenceOptions {
@@ -306,16 +308,13 @@ export class ExportPreviewer {
         throw new Error(`找不到動作：${options.animation}`)
       }
       const duration = instance.data.findAnimation(options.animation)?.duration ?? 0
-      const selection = selectFrames(sequenceTimes(duration, options.fps), options.startFrame, options.endFrame)
-      if (selection.times.length === 0) {
-        prepared.renderer.dispose()
-        throw new Error('影格範圍內沒有可匯出的影格')
-      }
-      const content = measureSequence(instance, options.animation, selection.times, 0)
-      this.cache = { key, prepared, content, times: selection.times, first: selection.first, animation: options.animation }
+      const selection = sequenceFrames(duration, options.fps, options.startFrame, options.endFrame)
+      const sampler = new SequenceSampler(instance, options.animation, options.fps)
+      const content = sampler.measure(selection.times, 0)
+      this.cache = { key, prepared, content, times: selection.times, first: selection.first, sampler }
     } else {
       if (pose) transferPose(pose, instance.skeleton)
-      this.cache = { key, prepared, content: instance.bounds(), times: [0], first: 0, animation: null }
+      this.cache = { key, prepared, content: instance.bounds(), times: [0], first: 0, sampler: null }
     }
     return this.cache
   }
@@ -325,7 +324,7 @@ export class ExportPreviewer {
     const { renderer, instance, premultipliedAlpha } = plan.prepared
     const options = request.options
     const index = Math.min(plan.times.length - 1, Math.max(0, Math.round(request.frame)))
-    if (plan.animation) instance.seek(plan.times[index])
+    if (plan.sampler) plan.sampler.sample(plan.times[index])
     else if (pose) transferPose(pose, instance.skeleton)
     const geometry = previewGeometry(plan.content, instance.bounds(), options, request.maxWidth, request.maxHeight, request.view ?? null)
     renderer.resize(geometry.small)

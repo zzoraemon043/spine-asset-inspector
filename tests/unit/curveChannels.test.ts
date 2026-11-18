@@ -130,6 +130,16 @@ describe('slot and event channels', () => {
 })
 
 describe('curve commands', () => {
+  it('preserves inherited Y mixes when moving a transform key', () => {
+    const document: SkeletonDocument = {
+      animations: { walk: { transform: { follow: [{ time: 0.1, mixX: 0.25, mixScaleX: 0.5 }, { time: 0.8, mixX: 0.3, mixY: 1 }] } } },
+    }
+    const moved = moveKeyRefs(document, 'walk', [{ target: 'follow', channel: 'transform', index: 0 }], 0.2)
+    const keys = channelKeys(apply(document, moved.command.ops), 'walk', 'follow', 'transform')
+    expect(keys.map((key) => key.time)).toEqual([0.3, 0.8])
+    expect(keys.map((key) => key.values)).toEqual([[1, 0.25, 0.25, 0.5, 0.5, 1], [1, 0.3, 1, 1, 1, 1]])
+  })
+
   it('writes linear, stepped and bezier curves that change runtime interpolation', () => {
     const build = buildDemo()
     const refs = [{ target: 'torso', channel: 'rotate', index: 0 }]

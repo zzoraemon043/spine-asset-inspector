@@ -71,7 +71,9 @@ export function Dopesheet() {
   const autoKey = useInspectorStore((state) => state.autoKey)
   const pending = useInspectorStore((state) => state.pendingPose)
   const clipboard = useInspectorStore((state) => state.keyClipboard)
-  const frame = useLiveStore((state) => state.snapshot.frame)
+  const editingFrame = useInspectorStore((state) => state.editingFrame)
+  const playbackFrame = useLiveStore((state) => state.snapshot.frame)
+  const frame = editingFrame ?? playbackFrame
   const tracksRef = useRef<HTMLDivElement>(null)
   const rulerRef = useRef<HTMLDivElement>(null)
   const gestureRef = useRef<Gesture | null>(null)

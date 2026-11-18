@@ -334,18 +334,27 @@ export class InspectorController<TImage> {
     return this.load(() => this.env.createLocalSource(files, preferredSkeleton), files)
   }
 
-  async switchSkeleton(path: string): Promise<boolean> {
-    if (!this.files) return false
-    return this.loadFiles(this.files, path)
+  async switchSkeleton(path: string, decision?: 'save' | 'discard'): Promise<boolean> {
+    const files = this.files
+    if (!files || this.state.status === 'loading' || path === this.state.asset?.fileName) return false
+    if (this.state.editor.dirty && (!decision || (decision === 'save' && !this.editor.saveJson()))) return false
+    const revision = this.state.editor.revision
+    return this.load(() => this.env.createLocalSource(files, path), files, () => !this.state.editor.dirty || this.state.editor.revision === revision)
   }
 
-  private async load(factory: () => Promise<AssetSource<TImage>>, files: readonly VirtualFile[] | null): Promise<boolean> {
+  private async load(factory: () => Promise<AssetSource<TImage>>, files: readonly VirtualFile[] | null, canReplace?: () => boolean): Promise<boolean> {
     this.loadToken += 1
     const token = this.loadToken
     patchState({ status: 'loading', error: null })
     try {
       const source = await factory()
       if (token !== this.loadToken) return false
+      if (canReplace && !canReplace()) {
+        this.env.releaseSource?.(source)
+        patchState({ status: 'ready' })
+        pushNotice('warning', '切換期間有新的未儲存變更，請重新選擇骨架')
+        return false
+      }
       this.applySource(source)
       this.files = files
       const warnings = this.state.asset?.warnings ?? []
@@ -482,7 +491,8 @@ export class InspectorController<TImage> {
       instance.skeleton.setToSetupPose()
     } else if (state.animateMode && animation) {
       instance.setTrack(0, animation, { loop: state.loop, mixDuration: 0, resetPose: true })
-      instance.seek(animation === state.animation ? time : 0)
+      const editingTime = state.editingFrame === null ? time : state.editingFrame / instance.fps + FRAME_SEEK_EPSILON
+      instance.seek(animation === state.animation ? editingTime : 0)
       this.animate.reapply(instance)
     } else {
       if (animation) {
@@ -505,6 +515,7 @@ export class InspectorController<TImage> {
     patchState({
       asset: summary,
       animation,
+      editingFrame: animation === state.animation ? state.editingFrame : null,
       activeSkins: skins,
       mixPairs,
       layers,
@@ -565,7 +576,7 @@ export class InspectorController<TImage> {
       patchState({ animateMode: true, playing: false, keySelection: [] })
     } else {
       this.animate.clearPending()
-      patchState({ animateMode: false, keySelection: [] })
+      patchState({ animateMode: false, editingFrame: null, keySelection: [] })
       for (const layer of state.layers) this.applyLayer(null, layer)
       instance.refresh()
     }
@@ -589,7 +600,7 @@ export class InspectorController<TImage> {
       }
       if (state.animateMode) {
         this.animate.clearPending()
-        patchState({ animateMode: false, keySelection: [] })
+        patchState({ animateMode: false, editingFrame: null, keySelection: [] })
       }
       this.audio.stopSync()
       this.pendingTransition = null
@@ -654,7 +665,7 @@ export class InspectorController<TImage> {
       this.animate.clearPending()
       instance.setTrack(0, name, { loop: this.state.loop, mixDuration: 0, resetPose: true })
       instance.seek(0)
-      patchState({ animation: name, keySelection: [], exportSettings: { ...this.state.exportSettings, animation: name } })
+      patchState({ animation: name, editingFrame: null, keySelection: [], exportSettings: { ...this.state.exportSettings, animation: name } })
       this.publishLive(true)
       return
     }
@@ -685,7 +696,7 @@ export class InspectorController<TImage> {
     }
     instance.paused = !playing
     if (!playing) this.audio.stopSync()
-    patchState({ playing })
+    patchState({ playing, editingFrame: playing ? null : this.state.editingFrame })
     this.publishLive(true)
   }
 
@@ -708,24 +719,32 @@ export class InspectorController<TImage> {
     const instance = this.instance
     if (!instance) return
     if (this.state.playing) this.setPlaying(false)
+    const editingFrame = this.state.editingFrame
+    if (editingFrame !== null && editingFrame !== instance.snapshot().frame) {
+      this.seekFrame(editingFrame + frames)
+      return
+    }
     this.animate.clearPending()
     instance.step(frames)
+    if (editingFrame !== null) patchState({ editingFrame: null })
     this.flushEvents()
     this.publishLive(true)
   }
 
-  seek(time: number): void {
+  seek(time: number, editingFrame: number | null = null): void {
     const instance = this.instance
     if (!instance) return
     this.animate.clearPending()
     instance.seek(time)
+    if (this.state.editingFrame !== editingFrame) patchState({ editingFrame })
     this.publishLive(true)
   }
 
   seekFrame(frame: number): void {
     const instance = this.instance
     if (!instance) return
-    this.seek(frame / instance.fps + FRAME_SEEK_EPSILON)
+    const editingFrame = this.state.animateMode && !this.state.playing ? Math.max(0, Math.floor(frame)) : null
+    this.seek((editingFrame ?? frame) / instance.fps + FRAME_SEEK_EPSILON, editingFrame)
   }
 
   beginScrub(): void {
@@ -772,7 +791,7 @@ export class InspectorController<TImage> {
     instance.setTrack(0, from, { loop: true, mixDuration: 0, resetPose: true })
     instance.paused = false
     this.pendingTransition = { from, to, duration: transition.duration, hold: transition.hold }
-    patchState({ animation: from, playing: true })
+    patchState({ animation: from, playing: true, editingFrame: null })
     this.publishLive(true)
   }
 

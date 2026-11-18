@@ -180,6 +180,7 @@ export interface InspectorState {
   editor: EditorState
   setupMode: boolean
   animateMode: boolean
+  editingFrame: number | null
   autoKey: boolean
   keySelection: string[]
   pendingPose: string[]
@@ -241,6 +242,7 @@ export const initialInspectorState: InspectorState = {
   editor: EMPTY_EDITOR,
   setupMode: false,
   animateMode: false,
+  editingFrame: null,
   autoKey: true,
   keySelection: [],
   pendingPose: [],

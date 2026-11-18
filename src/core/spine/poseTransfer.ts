@@ -1,4 +1,4 @@
-import type { Skeleton } from '@esotericsoftware/spine-core'
+import type { Skeleton, SkinEntry } from '@esotericsoftware/spine-core'
 
 export function transferPose(source: Skeleton, target: Skeleton): void {
   target.x = source.x
@@ -25,13 +25,23 @@ export function transferPose(source: Skeleton, target: Skeleton): void {
     to.active = from.active
   }
   const slotCount = Math.min(source.slots.length, target.slots.length)
+  const entries: SkinEntry[] = []
   for (let i = 0; i < slotCount; i++) {
     const from = source.slots[i]
     const to = target.slots[i]
     to.color.setFromColor(from.color)
     if (from.darkColor && to.darkColor) to.darkColor.setFromColor(from.darkColor)
-    const name = from.getAttachment()?.name ?? null
-    to.setAttachment(name === null ? null : target.getAttachment(i, name))
+    const attachment = from.getAttachment()
+    let key: string | undefined
+    if (attachment) {
+      for (const skin of [source.skin, source.data.defaultSkin]) {
+        entries.length = 0
+        skin?.getAttachmentsForSlot(from.data.index, entries)
+        key = entries.find((entry) => entry.attachment === attachment)?.name
+        if (key !== undefined) break
+      }
+    }
+    to.setAttachment(key === undefined ? null : target.getAttachment(to.data.index, key))
     to.sequenceIndex = from.sequenceIndex
     to.deform = from.deform.slice()
   }

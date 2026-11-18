@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildManifest, EXPORT_LIMITS, frameFileName, frameSize, measureSequence, sanitizeFileStem, sequenceTimes } from '../../src/core/export/exportPlan'
+import { buildManifest, EXPORT_LIMITS, frameFileName, frameSize, sanitizeFileStem, sequenceFrames, SequenceSampler } from '../../src/core/export/exportPlan'
 import { pickWebmMimeType } from '../../src/core/export/webm'
 import { SpineInstance } from '../../src/core/spine/SpineInstance'
 import { transferPose } from '../../src/core/spine/poseTransfer'
+import { Skin } from '@esotericsoftware/spine-core'
 import { buildDemo } from '../support/fakeTexture'
 
 describe('export planning', () => {
@@ -15,8 +16,8 @@ describe('export planning', () => {
   })
 
   it('samples frames and enforces the frame cap', () => {
-    expect(sequenceTimes(1, 30)).toHaveLength(30)
-    expect(sequenceTimes(100, 60)).toHaveLength(EXPORT_LIMITS.maxFrames)
+    expect(sequenceFrames(1, 30).times).toHaveLength(30)
+    expect(sequenceFrames(100, 60).times).toHaveLength(EXPORT_LIMITS.maxFrames)
   })
 
   it('names files predictably', () => {
@@ -29,8 +30,8 @@ describe('export planning', () => {
   it('measures the union of all frames', () => {
     const instance = new SpineInstance(buildDemo().data)
     instance.setSkins(['weapon/sword'])
-    const times = sequenceTimes(0.8, 30)
-    const bounds = measureSequence(instance, 'attack', times, 4)
+    const { times } = sequenceFrames(0.8, 30)
+    const bounds = new SequenceSampler(instance, 'attack', 30).measure(times, 4)
     instance.seek(0)
     const first = instance.bounds()
     expect(bounds.height).toBeGreaterThan(first.height)
@@ -44,7 +45,7 @@ describe('export planning', () => {
       skins: ['a'],
       fps: 30,
       duration: 1,
-      bounds: { x: -50, y: 0, width: 100, height: 200 },
+      origin: { x: 100, y: 400 },
       size: { width: 200, height: 400, scale: 2 },
       frames: [{ file: 'f.png', time: 0 }],
     })
@@ -61,6 +62,27 @@ describe('export planning', () => {
 })
 
 describe('pose transfer', () => {
+  it.each([false, true])('uses the registered attachment key with default skin set to %s', (useDefault) => {
+    const source = new SpineInstance(buildDemo().data)
+    const target = new SpineInstance(buildDemo().data)
+    const configure = (instance: SpineInstance) => {
+      const slot = instance.skeleton.findSlot('weapon')!
+      const original = instance.data.findSkin('weapon/sword')!.getAttachments().find((entry) => entry.slotIndex === slot.data.index)!.attachment
+      const skin = useDefault ? instance.data.defaultSkin! : new Skin('custom')
+      skin.removeAttachment(slot.data.index, original.name)
+      skin.setAttachment(slot.data.index, 'weapon-key', original)
+      if (!useDefault) instance.skeleton.setSkin(skin)
+      return original
+    }
+    const attachment = configure(source)
+    const expected = configure(target)
+    source.skeleton.setAttachment('weapon', 'weapon-key')
+    expect(source.skeleton.findSlot('weapon')!.getAttachment()).toBe(attachment)
+    expect(target.skeleton.getAttachmentByName('weapon', attachment.name)).not.toBe(expected)
+    transferPose(source.skeleton, target.skeleton)
+    expect(target.skeleton.findSlot('weapon')!.getAttachment()).toBe(expected)
+  })
+
   it('copies world transforms, attachments and draw order', () => {
     const data = buildDemo().data
     const source = new SpineInstance(data)

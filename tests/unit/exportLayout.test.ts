@@ -6,7 +6,7 @@ import {
   framePosition,
   parseBackground,
   resolveFrameSize,
-  selectFrames,
+  sequenceFrames,
   sheetLayout,
   sheetManifest,
   unpremultiplyFlip,
@@ -35,12 +35,11 @@ describe('output sizing', () => {
   })
 
   it('selects frame ranges safely', () => {
-    const times = [0, 0.1, 0.2, 0.3, 0.4]
-    expect(selectFrames(times, 1, 3)).toEqual({ times: [0.1, 0.2, 0.3], first: 1, last: 3 })
-    expect(selectFrames(times, 2, null)).toEqual({ times: [0.2, 0.3, 0.4], first: 2, last: 4 })
-    expect(selectFrames(times, 9, 1).times).toEqual([0.4])
-    expect(selectFrames(times, -3, 0).times).toEqual([0])
-    expect(selectFrames([], 0, null).times).toEqual([])
+    expect(sequenceFrames(0.5, 10, 1, 3)).toEqual({ times: [0.1, 0.2, 0.3], first: 1, last: 3, totalFrames: 5 })
+    expect(sequenceFrames(0.5, 10, 2, null)).toEqual({ times: [0.2, 0.3, 0.4], first: 2, last: 4, totalFrames: 5 })
+    expect(sequenceFrames(0.5, 10, 9, 1).times).toEqual([0.4])
+    expect(sequenceFrames(0.5, 10, -3, 0).times).toEqual([0])
+    expect(sequenceFrames(0, 10).times).toEqual([0])
   })
 })
 

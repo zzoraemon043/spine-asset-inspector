@@ -17,6 +17,7 @@ export interface FieldSpec {
   readonly size: number
   readonly defaults: readonly number[]
   readonly always?: boolean
+  readonly fallback?: string
 }
 
 export interface ChannelSpec {
@@ -32,7 +33,7 @@ export interface ChannelSpec {
 const number = (name: string, value = 0): FieldSpec => ({ name, kind: 'number', size: 1, defaults: [value] })
 const color = (name: string, size: 3 | 4): FieldSpec => ({ name, kind: 'color', size, defaults: Array.from({ length: size }, () => 1) })
 
-const mix = (name: string): FieldSpec => ({ name, kind: 'number', size: 1, defaults: [1], always: true })
+const mix = (name: string, fallback?: string): FieldSpec => ({ name, kind: 'number', size: 1, defaults: [1], always: true, fallback })
 
 function spec(name: string, label: string, group: ChannelGroup, fields: readonly FieldSpec[], curved = true, unique = true, progress = false): ChannelSpec {
   return { name, label, group, fields, curved, unique, progress }
@@ -58,7 +59,7 @@ const SPECS: readonly ChannelSpec[] = [
   spec('rgb2', '雙色 RGB', 'slots', [color('light', 3), color('dark', 3)]),
   spec('event', '事件', 'events', [], false, false),
   spec('ik', 'IK', 'ik', [number('mix', 1), number('softness')]),
-  spec('transform', '變換', 'transform', [mix('mixRotate'), mix('mixX'), mix('mixY'), mix('mixScaleX'), mix('mixScaleY'), mix('mixShearY')]),
+  spec('transform', '變換', 'transform', [mix('mixRotate'), mix('mixX'), mix('mixY', 'mixX'), mix('mixScaleX'), mix('mixScaleY', 'mixScaleX'), mix('mixShearY')]),
   spec('drawOrder', '繪製順序', 'drawOrder', [], false),
   spec('deform', '變形', 'attachments', [], true, true, true),
 ]
@@ -141,8 +142,9 @@ export function parseKeys(channel: string, value: JsonValue | undefined): Key[] 
     const values: number[] = []
     for (const field of current.fields) {
       const entry = item[field.name]
+      const fallback = field.fallback ? item[field.fallback] : undefined
       if (field.kind === 'color') values.push(...(parseColor(entry, field.size) ?? field.defaults))
-      else values.push(typeof entry === 'number' ? entry : field.defaults[0])
+      else values.push(typeof entry === 'number' ? entry : typeof fallback === 'number' ? fallback : field.defaults[0])
     }
     return { time: typeof item.time === 'number' ? item.time : 0, values, curve: current.curved ? parseCurve(item.curve) : 'linear', extra, raw: item }
   })

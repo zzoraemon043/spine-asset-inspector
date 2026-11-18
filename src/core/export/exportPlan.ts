@@ -1,7 +1,7 @@
 import type { Bounds } from '../types'
 import type { SpineInstance } from '../spine/SpineInstance'
 import { padBounds, unionBounds } from '../render/camera'
-import { sampleTimes } from '../playback/timeMath'
+import { frameCountOf, timeOfFrame } from '../playback/timeMath'
 import type { ExportAlign } from './placement'
 
 export const EXPORT_LIMITS = {
@@ -72,28 +72,62 @@ export interface FrameSelection {
   readonly times: number[]
   readonly first: number
   readonly last: number
+  readonly totalFrames: number
 }
 
-export function selectFrames(times: readonly number[], start: number, end: number | null): FrameSelection {
-  if (times.length === 0) return { times: [], first: 0, last: -1 }
-  const lastIndex = times.length - 1
+export function sequenceFrames(duration: number, fps: number, start = 0, end: number | null = null): FrameSelection {
+  const totalFrames = Math.max(1, frameCountOf(duration, fps))
+  const lastIndex = totalFrames - 1
   const first = Math.min(lastIndex, Math.max(0, Math.round(Number.isFinite(start) ? start : 0)))
-  const last = Math.min(lastIndex, Math.max(first, Math.round(end === null || !Number.isFinite(end) ? lastIndex : end)))
-  return { times: times.slice(first, last + 1), first, last }
+  const requestedLast = Math.round(end === null || !Number.isFinite(end) ? lastIndex : end)
+  const last = Math.min(lastIndex, first + EXPORT_LIMITS.maxFrames - 1, Math.max(first, requestedLast))
+  const times = Array.from({ length: last - first + 1 }, (_, index) => Math.min(duration, timeOfFrame(first + index, fps)))
+  return { times, first, last, totalFrames }
 }
 
-export function sequenceTimes(duration: number, fps: number): number[] {
-  return sampleTimes(duration, fps).slice(0, EXPORT_LIMITS.maxFrames)
-}
+const SAMPLE_EPSILON = 1e-9
 
-export function measureSequence(instance: SpineInstance, animation: string, times: readonly number[], padding: number): Bounds {
-  instance.setTrack(0, animation, { loop: false, resetPose: true })
-  let bounds: Bounds | null = null
-  for (const time of times) {
-    instance.seek(time)
-    bounds = unionBounds(bounds, instance.bounds())
+export class SequenceSampler {
+  private time = 0
+  private readonly step: number
+  private readonly simulatePhysics: boolean
+
+  constructor(private readonly instance: SpineInstance, private readonly animation: string, fps: number) {
+    this.step = 1 / (fps * Math.ceil(60 / fps))
+    this.simulatePhysics = instance.data.physicsConstraints.length > 0
+    this.restart()
   }
-  return padBounds(bounds ?? instance.bounds(), padding)
+
+  private restart(): void {
+    this.time = 0
+    this.instance.skeleton.time = 0
+    this.instance.clearAll()
+    this.instance.setTrack(0, this.animation, { loop: false, resetPose: true })
+  }
+
+  sample(time: number): void {
+    if (!this.simulatePhysics) {
+      this.instance.seek(time)
+      return
+    }
+    if (time < this.time - SAMPLE_EPSILON) this.restart()
+    while (time - this.time >= this.step - SAMPLE_EPSILON) {
+      this.instance.advance(this.step, true)
+      this.time += this.step
+    }
+    if (time - this.time <= SAMPLE_EPSILON) return
+    this.instance.advance(time - this.time, true)
+    this.time = time
+  }
+
+  measure(times: readonly number[], padding: number): Bounds {
+    let bounds: Bounds | null = null
+    for (const time of times) {
+      this.sample(time)
+      bounds = unionBounds(bounds, this.instance.bounds())
+    }
+    return padBounds(bounds ?? this.instance.bounds(), padding)
+  }
 }
 
 export function frameFileName(prefix: string, index: number, total: number): string {
@@ -127,7 +161,7 @@ export function buildManifest(input: {
   skins: readonly string[]
   fps: number
   duration: number
-  bounds: Bounds
+  origin: SequenceManifest['origin']
   size: FrameSize
   frames: readonly { file: string; time: number }[]
 }): SequenceManifest {
@@ -143,8 +177,8 @@ export function buildManifest(input: {
     height: input.size.height,
     scale: input.size.scale,
     origin: {
-      x: Math.round(-input.bounds.x * input.size.scale * 100) / 100,
-      y: Math.round((input.bounds.y + input.bounds.height) * input.size.scale * 100) / 100,
+      x: Math.round(input.origin.x * 100) / 100,
+      y: Math.round(input.origin.y * 100) / 100,
     },
     frames: input.frames,
   }

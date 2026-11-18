@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { act, cleanup, createEvent, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { ControllerProvider } from '../../src/controller/ControllerContext'
 import type { InspectorController } from '../../src/controller/InspectorController'
@@ -10,6 +10,7 @@ import { useKeyboardShortcuts } from '../../src/hooks/useKeyboardShortcuts'
 import { useUnsavedGuard } from '../../src/hooks/useUnsavedGuard'
 import { useInspectorStore } from '../../src/store/inspectorStore'
 import { createHarness, type FakeHarness } from '../support/fakeEnvironment'
+import { demoSource } from '../support/fakeTexture'
 
 let harness: FakeHarness
 const state = () => useInspectorStore.getState()
@@ -40,6 +41,47 @@ beforeEach(async () => {
 afterEach(() => cleanup())
 
 describe('editing interface', () => {
+  it.each(['取消', '捨棄變更', '儲存 JSON 後切換'])('guards dirty skeleton switches with %s', async (choice) => {
+    const original = window.HTMLDialogElement.prototype.showModal
+    window.HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) { this.open = true })
+    return verifySwitch(choice).finally(() => { window.HTMLDialogElement.prototype.showModal = original })
+  })
+
+  async function verifySwitch(choice: string) {
+    const first = 'first.json'
+    const second = 'second.json'
+    harness = createHarness({
+      createLocalSource: async (_files, preferred) => {
+        const source = demoSource()
+        return { ...source, origin: 'local', skeletonCandidates: [first, second], skeleton: { ...source.skeleton, fileName: preferred ?? first } }
+      },
+    })
+    const { controller } = harness
+    await controller.loadFiles([])
+    expect(controller.editor.setBoneField('head', 'x', 123)).toBe(true)
+    mount(<PropertiesPanel />)
+
+    fireEvent.change(screen.getByTestId('skeleton-select'), { target: { value: second } })
+    expect(screen.getByRole('dialog', { name: '切換骨架' })).toBeTruthy()
+    expect(state().asset?.fileName).toBe(first)
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: choice })))
+
+    if (choice === '取消') {
+      expect(state().asset?.fileName).toBe(first)
+      expect(state().editor).toMatchObject({ dirty: true, canUndo: true })
+      expect(controller.instance?.data.findBone('head')?.x).toBe(123)
+    } else {
+      await waitFor(() => expect(state().asset?.fileName).toBe(second))
+      expect(state().editor).toMatchObject({ dirty: false, canUndo: false })
+      expect(controller.instance?.data.findBone('head')?.x).not.toBe(123)
+    }
+    if (choice === '儲存 JSON 後切換') {
+      expect(harness.saved).toHaveLength(1)
+      const json = JSON.parse(new TextDecoder().decode(await harness.saved[0].blob.arrayBuffer()))
+      expect(json.bones.find((bone: { name: string }) => bone.name === 'head').x).toBe(123)
+    } else expect(harness.saved).toHaveLength(0)
+  }
+
   it('edits bone setup values and names from the properties panel', () => {
     act(() => harness.controller.select({ kind: 'bone', name: 'head' }))
     mount(<PropertiesPanel />)

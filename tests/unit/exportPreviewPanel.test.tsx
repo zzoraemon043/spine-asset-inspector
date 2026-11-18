@@ -26,6 +26,20 @@ beforeEach(async () => {
 afterEach(() => cleanup())
 
 describe('export dialog preview', () => {
+  it('reports the capped output range without truncating the source timeline', async () => {
+    act(() => {
+      const asset = state().asset!
+      useInspectorStore.setState({ asset: { ...asset, animations: asset.animations.map((animation) => animation.name === 'walk' ? { ...animation, duration: 60 } : animation) } })
+      harness.controller.setExportOpen(true, 'walk')
+      harness.controller.updateExportSettings({ startFrame: 700 })
+    })
+    mount()
+    await waitFor(() => expect(state().exportPreview.status).toBe('ready'))
+    expect(screen.getByTestId('export-summary').textContent).toContain('輸出 600 格（第 700 到 1299 格，共 1800 格）')
+    fireEvent.change(screen.getByTestId('export-end'), { target: { value: '710' } })
+    expect(screen.getByTestId('export-summary').textContent).toContain('輸出 11 格（第 700 到 710 格，共 1800 格）')
+  })
+
   it('shows a live preview with frame scrubbing, guide lines and overflow warnings', async () => {
     act(() => harness.controller.setExportOpen(true, 'walk'))
     mount()

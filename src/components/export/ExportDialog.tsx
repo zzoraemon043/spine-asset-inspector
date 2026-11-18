@@ -9,7 +9,7 @@ import { cx } from '../ui/cx'
 import { ExportPreviewPanel } from './ExportPreviewPanel'
 import { ExportSizeSection } from './ExportSizeSection'
 import { Choice, NumberField } from './exportFields'
-import { frameSize } from '@/core/export/exportPlan'
+import { frameSize, sequenceFrames } from '@/core/export/exportPlan'
 
 const FORMATS: ReadonlyArray<{ id: ExportFormat; title: string; description: string; icon: ReactNode }> = [
   { id: 'sequence', title: 'PNG 序列圖', description: '每一格一張透明 PNG，打包成 ZIP', icon: <Archive size={16} /> },
@@ -39,11 +39,12 @@ export function ExportDialog() {
 
   if (!open || !asset) return null
   const animation = asset.animations.find((item) => item.name === settings.animation) ?? null
-  const totalFrames = animation ? Math.max(1, Math.round(animation.duration * settings.fps)) : 0
+  const selection = animation ? sequenceFrames(animation.duration, settings.fps, settings.startFrame, settings.endFrame) : null
+  const totalFrames = selection?.totalFrames ?? 0
   const lastFrame = Math.max(0, totalFrames - 1)
-  const start = Math.min(settings.startFrame, lastFrame)
-  const end = settings.endFrame === null ? lastFrame : Math.min(settings.endFrame, lastFrame)
-  const frameCount = Math.max(0, end - start + 1)
+  const start = selection?.first ?? 0
+  const end = selection?.last ?? 0
+  const frameCount = selection?.times.length ?? 0
   const isFrame = settings.format === 'frame'
   const update = controller.updateExportSettings.bind(controller)
   const crop = settings.sizeMode === 'crop' ? settings.crop : null

@@ -86,6 +86,35 @@ describe('animate mode', () => {
     expect(harness.controller.instance!.skeleton.findBone('torso')!.rotation).toBeCloseTo(before, 3)
   })
 
+  it('auto-keys a later frame in a blank animation', () => {
+    const controller = harness.controller
+    expect(controller.editor.addAnimation('blank')).toBe(true)
+    controller.selectAnimation('blank')
+    expect(controller.setAnimateMode(true)).toBe(true)
+    controller.seekFrame(0)
+    expect(controller.animate.applyPose('root', { x: 5 }, '移動骨骼 root')).toBe(true)
+    controller.seekFrame(10)
+    expect(controller.instance!.snapshot().duration).toBe(0)
+    expect(controller.animate.applyPose('root', { x: 15 }, '移動骨骼 root')).toBe(true)
+    const keyed = keys('root', 'translate', 'blank')
+    expect(keyed.map((key) => key.time)).toEqual([0, 0.333333])
+    expect(keyed.map((key) => key.values[0])).toEqual([5, 15])
+    expect(controller.instance!.skeleton.findBone('root')!.x).toBeCloseTo(15, 2)
+  })
+
+  it('restores an unkeyed bone before posing another frame', () => {
+    const controller = harness.controller
+    controller.selectAnimation('idle')
+    expect(controller.setAnimateMode(true)).toBe(true)
+    controller.animate.setAutoKey(false)
+    const x = controller.instance!.skeleton.findBone('root')!.x
+    expect(controller.animate.applyPose('root', { x: x + 40 }, '移動骨骼 root')).toBe(true)
+    expect(controller.instance!.skeleton.findBone('root')!.x).toBe(x + 40)
+    controller.seekFrame(8)
+    expect(state().pendingPose).toEqual([])
+    expect(controller.instance!.skeleton.findBone('root')!.x).toBe(x)
+  })
+
   it('keeps unkeyed changes pending when auto-key is off until K is pressed', () => {
     const controller = harness.controller
     enterAnimate(6, 'head')
